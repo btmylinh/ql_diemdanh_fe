@@ -11,22 +11,6 @@ class ManagerDashboardScreen extends ConsumerWidget {
 
   // Dialog methods for unimplemented features
 
-  void _showQRDialog(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Quản lý QR Code'),
-        content: const Text('Tính năng quản lý QR Code sẽ được triển khai trong phiên bản tiếp theo. QR Code sẽ được tạo tự động cho mỗi hoạt động.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Đóng'),
-          ),
-        ],
-      ),
-    );
-  }
-
   void _showProfileDialog(BuildContext context) {
     showDialog(
       context: context,
@@ -221,20 +205,6 @@ class ManagerDashboardScreen extends ConsumerWidget {
                     color: Colors.orange,
                     onTap: () => context.push('/manager/activities'),
                   ),
-                  _QuickActionCard(
-                    icon: Icons.people,
-                    title: 'Đăng ký hàng loạt',
-                    subtitle: 'Quản lý đăng ký',
-                    color: Colors.purple,
-                    onTap: () => context.push('/manager/batch-registrations'),
-                  ),
-                  _QuickActionCard(
-                    icon: Icons.qr_code,
-                    title: 'QR Code',
-                    subtitle: 'Tạo và quản lý QR',
-                    color: Colors.green,
-                    onTap: () => _showQRDialog(context),
-                  ),
                 ],
               ),
             ],
@@ -297,7 +267,7 @@ class ManagerDashboardScreen extends ConsumerWidget {
         ),
         const SizedBox(height: 16),
         _StatCard(
-          title: 'Tổng đăng ký',
+          title: 'Tổng sinh viên đăng ký',
           value: '${stats['totalRegistrations'] ?? 0}',
           icon: Icons.people,
           color: Colors.purple,

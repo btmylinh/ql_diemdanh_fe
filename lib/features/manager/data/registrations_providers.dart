@@ -1,29 +1,21 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'registrations_repository.dart';
 
-// Provider for activity registrations
-final activityRegistrationsProvider = FutureProvider.family<Map<String, dynamic>, Map<String, dynamic>>((ref, params) async {
+// Provider for activity registrations (use records for stable params)
+typedef ActivityRegistrationsParams = ({int activityId, int page, int limit, String? search, String? status});
+
+final activityRegistrationsProvider = FutureProvider.family<Map<String, dynamic>, ActivityRegistrationsParams>((ref, params) async {
   final repository = ref.read(managerRegistrationsRepositoryProvider);
   return repository.getActivityRegistrations(
-    params['activityId'] as int,
-    page: params['page'] as int? ?? 1,
-    limit: params['limit'] as int? ?? 50,
-    search: params['search'] as String?,
-    status: params['status'] as String?,
+    params.activityId,
+    page: params.page,
+    limit: params.limit,
+    search: params.search,
+    status: params.status,
   );
 });
 
-// Provider for all registrations
-final allRegistrationsProvider = FutureProvider.family<Map<String, dynamic>, Map<String, dynamic>>((ref, params) async {
-  final repository = ref.read(managerRegistrationsRepositoryProvider);
-  return repository.getAllRegistrations(
-    page: params['page'] as int? ?? 1,
-    limit: params['limit'] as int? ?? 50,
-    search: params['search'] as String?,
-    status: params['status'] as String?,
-    activityId: params['activityId'] as int?,
-  );
-});
+// Provider for all registrations - Đã xóa vì không cần thiết
 
 // Provider for registration statistics
 final registrationStatsProvider = FutureProvider.family<Map<String, dynamic>, int>((ref, activityId) async {
@@ -99,53 +91,6 @@ class RegistrationManagementNotifier extends StateNotifier<RegistrationManagemen
     state = state.copyWith(selectedRegistrations: []);
   }
 
-  Future<void> updateRegistrationStatus(int registrationId, String status) async {
-    state = state.copyWith(isLoading: true, error: null);
-    
-    try {
-      await _repository.updateRegistrationStatus(registrationId, status);
-      state = state.copyWith(isLoading: false);
-    } catch (e) {
-      state = state.copyWith(isLoading: false, error: e.toString());
-    }
-  }
-
-  Future<void> batchUpdateRegistrationStatuses(String status) async {
-    if (state.selectedRegistrations.isEmpty) return;
-    
-    state = state.copyWith(isLoading: true, error: null);
-    
-    try {
-      await _repository.batchUpdateRegistrationStatuses(state.selectedRegistrations, status);
-      state = state.copyWith(isLoading: false, selectedRegistrations: []);
-    } catch (e) {
-      state = state.copyWith(isLoading: false, error: e.toString());
-    }
-  }
-
-  Future<void> deleteRegistration(int registrationId) async {
-    state = state.copyWith(isLoading: true, error: null);
-    
-    try {
-      await _repository.deleteRegistration(registrationId);
-      state = state.copyWith(isLoading: false);
-    } catch (e) {
-      state = state.copyWith(isLoading: false, error: e.toString());
-    }
-  }
-
-  Future<void> batchDeleteRegistrations() async {
-    if (state.selectedRegistrations.isEmpty) return;
-    
-    state = state.copyWith(isLoading: true, error: null);
-    
-    try {
-      await _repository.batchDeleteRegistrations(state.selectedRegistrations);
-      state = state.copyWith(isLoading: false, selectedRegistrations: []);
-    } catch (e) {
-      state = state.copyWith(isLoading: false, error: e.toString());
-    }
-  }
 
   Future<List<int>?> exportRegistrationsToCSV(int activityId) async {
     state = state.copyWith(isLoading: true, error: null);

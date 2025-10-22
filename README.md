@@ -1,4 +1,4 @@
-# ql_diemdanh_fe
+# cd ql_diemdanh_fe
 
 flutter run
 

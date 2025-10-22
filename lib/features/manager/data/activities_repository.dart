@@ -110,27 +110,31 @@ class ManagerActivitiesRepository {
     print('[DASHBOARD_STATS] My activities count from API: ${activities.length}');
     
     int totalActivities = activities.length;
-    int activeActivities = 0;
-    int upcomingActivities = 0;
-    int completedActivities = 0;
+    int activeActivities = 0;      // status 2 (ongoing)
+    int upcomingActivities = 0;  // status 1 (upcoming)
+    int completedActivities = 0;  // status 3 (completed)
+    int cancelledActivities = 0; // status 4 (cancelled)
     int totalRegistrations = 0;
     
     for (final activity in activities) {
       final activityData = activity as Map<String, dynamic>;
       final status = activityData['status'] as int? ?? 0;
-      final registrations = activityData['registrations'] as List<dynamic>? ?? [];
       
-      totalRegistrations += registrations.length;
+      // Use API-provided registered_count instead of registrations array
+      totalRegistrations += (activityData['registered_count'] as int?) ?? 0;
       
       switch (status) {
-        case 1: // Active
-          activeActivities++;
-          break;
-        case 2: // Upcoming
+        case 1: // Upcoming
           upcomingActivities++;
+          break;
+        case 2: // Ongoing/Active
+          activeActivities++;
           break;
         case 3: // Completed
           completedActivities++;
+          break;
+        case 4: // Cancelled
+          cancelledActivities++;
           break;
       }
     }
@@ -140,6 +144,7 @@ class ManagerActivitiesRepository {
       'activeActivities': activeActivities,
       'upcomingActivities': upcomingActivities,
       'completedActivities': completedActivities,
+      'cancelledActivities': cancelledActivities,
       'totalRegistrations': totalRegistrations,
     };
     
@@ -155,6 +160,7 @@ class ManagerActivitiesRepository {
         'activeActivities': 0,
         'upcomingActivities': 0,
         'completedActivities': 0,
+        'cancelledActivities': 0,
         'totalRegistrations': 0,
       };
     }

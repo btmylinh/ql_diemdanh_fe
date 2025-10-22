@@ -18,13 +18,16 @@ final managerActivitiesProvider = FutureProvider.family<Map<String, dynamic>, Ma
 });
 
 // Provider for my activities (created by current user)
-final myActivitiesProvider = FutureProvider.family<Map<String, dynamic>, Map<String, dynamic>>((ref, params) async {
+// Use records for stable value-equality to avoid re-fetch loops on rebuilds
+typedef MyActivitiesParams = ({int page, int limit, String? q, int? status});
+
+final myActivitiesProvider = FutureProvider.family<Map<String, dynamic>, MyActivitiesParams>((ref, params) async {
   final repository = ref.read(managerActivitiesRepositoryProvider);
   return repository.getMyActivities(
-    page: params['page'] as int? ?? 1,
-    limit: params['limit'] as int? ?? 10,
-    q: params['q'] as String?,
-    status: params['status'] as int?,
+    page: params.page,
+    limit: params.limit,
+    q: params.q,
+    status: params.status,
   );
 });
 

@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../theme.dart';
 import '../data/activities_providers.dart';
-import '../../auth/user_provider.dart';
 
 class ActivitiesListScreen extends ConsumerStatefulWidget {
   const ActivitiesListScreen({super.key});
@@ -42,25 +41,23 @@ class _ActivitiesListScreenState extends ConsumerState<ActivitiesListScreen> {
 
   void _loadActivities() {
     print('[ACTIVITIES_LIST] Loading activities with params: page=$_currentPage, limit=$_pageSize, search=${_searchController.text.trim()}, status=$_statusFilter');
-    ref.invalidate(myActivitiesProvider({
-      'page': _currentPage,
-      'limit': _pageSize,
-      'q': _searchController.text.trim().isEmpty ? null : _searchController.text.trim(),
-      'status': _statusFilter != null ? int.tryParse(_statusFilter!) : null,
-    }));
+    ref.invalidate(myActivitiesProvider((
+      page: _currentPage,
+      limit: _pageSize,
+      q: _searchController.text.trim().isEmpty ? null : _searchController.text.trim(),
+      status: _statusFilter != null ? int.tryParse(_statusFilter!) : null,
+    )));
   }
 
   @override
   Widget build(BuildContext context) {
-    final user = ref.watch(userProvider);
-    
     // Use a fixed key to avoid infinite rebuilds
-    final activitiesAsync = ref.watch(myActivitiesProvider({
-      'page': _currentPage,
-      'limit': _pageSize,
-      'q': _searchController.text.trim().isEmpty ? null : _searchController.text.trim(),
-      'status': _statusFilter != null ? int.tryParse(_statusFilter!) : null,
-    }));
+    final activitiesAsync = ref.watch(myActivitiesProvider((
+      page: _currentPage,
+      limit: _pageSize,
+      q: _searchController.text.trim().isEmpty ? null : _searchController.text.trim(),
+      status: _statusFilter != null ? int.tryParse(_statusFilter!) : null,
+    )));
 
     return Scaffold(
       backgroundColor: Colors.grey[50],
@@ -99,7 +96,12 @@ class _ActivitiesListScreenState extends ConsumerState<ActivitiesListScreen> {
                       border: OutlineInputBorder(),
                       contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                     ),
-                    onSubmitted: (_) => _loadActivities(),
+                    onSubmitted: (_) {
+                      setState(() {
+                        _currentPage = 1;
+                      });
+                      _loadActivities();
+                    },
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -108,10 +110,10 @@ class _ActivitiesListScreenState extends ConsumerState<ActivitiesListScreen> {
                   hint: const Text('Trạng thái'),
                   items: const [
                     DropdownMenuItem(value: null, child: Text('Tất cả')),
-                    DropdownMenuItem(value: '1', child: Text('Đang diễn ra')),
-                    DropdownMenuItem(value: '2', child: Text('Sắp diễn ra')),
+                    DropdownMenuItem(value: '1', child: Text('Sắp diễn ra')),
+                    DropdownMenuItem(value: '2', child: Text('Đang diễn ra')),
                     DropdownMenuItem(value: '3', child: Text('Đã hoàn thành')),
-                    DropdownMenuItem(value: '0', child: Text('Đã hủy')),
+                    DropdownMenuItem(value: '4', child: Text('Đã hủy')),
                   ],
                   onChanged: (value) {
                     setState(() => _statusFilter = value);
@@ -241,6 +243,7 @@ class _ActivitiesListScreenState extends ConsumerState<ActivitiesListScreen> {
               // Header with name and status
               Row(
                 children: [
+                  // Removed extra upcoming badge to simplify UI; use single status chip instead
                   Expanded(
                     child: Text(
                       name,
@@ -332,9 +335,9 @@ class _ActivitiesListScreenState extends ConsumerState<ActivitiesListScreen> {
                 children: [
                   Expanded(
                     child: OutlinedButton.icon(
-                      onPressed: () => context.push('/manager/activity/$id/registrations'),
+                      onPressed: () => context.push('/manager/activity/$id/students'),
                       icon: const Icon(Icons.people, size: 16),
-                      label: const Text('Đăng ký'),
+                      label: const Text('Sinh viên'),
                       style: OutlinedButton.styleFrom(
                         foregroundColor: kBlue,
                         side: BorderSide(color: kBlue),
@@ -342,17 +345,31 @@ class _ActivitiesListScreenState extends ConsumerState<ActivitiesListScreen> {
                     ),
                   ),
                   const SizedBox(width: 8),
-                  Expanded(
-                    child: OutlinedButton.icon(
-                      onPressed: () => context.push('/manager/activity/$id/attendance'),
-                      icon: const Icon(Icons.qr_code_scanner, size: 16),
-                      label: const Text('Điểm danh'),
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: Colors.green,
-                        side: BorderSide(color: Colors.green),
+                  if (status == 2) ...[
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        onPressed: () => context.push('/manager/activity/$id/attendance'),
+                        icon: const Icon(Icons.qr_code_scanner, size: 16),
+                        label: const Text('Điểm danh'),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: Colors.green,
+                          side: BorderSide(color: Colors.green),
+                        ),
                       ),
                     ),
-                  ),
+                  ] else ...[
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        onPressed: null,
+                        icon: const Icon(Icons.qr_code_scanner, size: 16),
+                        label: const Text('Điểm danh'),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: Colors.grey,
+                          side: BorderSide(color: Colors.grey),
+                        ),
+                      ),
+                    ),
+                  ],
                 ],
               ),
             ],
@@ -368,6 +385,19 @@ class _ActivitiesListScreenState extends ConsumerState<ActivitiesListScreen> {
         return Container(
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
           decoration: BoxDecoration(
+            color: Colors.orange.withValues(alpha: 0.1),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: Colors.orange.withValues(alpha: 0.3)),
+          ),
+          child: const Text(
+            'Sắp diễn ra',
+            style: TextStyle(color: Colors.orange, fontSize: 12, fontWeight: FontWeight.w500),
+          ),
+        );
+      case 2:
+        return Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          decoration: BoxDecoration(
             color: Colors.green.withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(12),
             border: Border.all(color: Colors.green.withValues(alpha: 0.3)),
@@ -377,7 +407,7 @@ class _ActivitiesListScreenState extends ConsumerState<ActivitiesListScreen> {
             style: TextStyle(color: Colors.green, fontSize: 12, fontWeight: FontWeight.w500),
           ),
         );
-      case 2:
+      case 3:
         return Container(
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
           decoration: BoxDecoration(
@@ -386,24 +416,11 @@ class _ActivitiesListScreenState extends ConsumerState<ActivitiesListScreen> {
             border: Border.all(color: Colors.blue.withValues(alpha: 0.3)),
           ),
           child: const Text(
-            'Sắp diễn ra',
+            'Đã hoàn thành',
             style: TextStyle(color: Colors.blue, fontSize: 12, fontWeight: FontWeight.w500),
           ),
         );
-      case 3:
-        return Container(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-          decoration: BoxDecoration(
-            color: Colors.grey.withValues(alpha: 0.1),
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: Colors.grey.withValues(alpha: 0.3)),
-          ),
-          child: const Text(
-            'Đã hoàn thành',
-            style: TextStyle(color: Colors.grey, fontSize: 12, fontWeight: FontWeight.w500),
-          ),
-        );
-      case 0:
+      case 4:
         return Container(
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
           decoration: BoxDecoration(
@@ -502,4 +519,5 @@ class _ActivitiesListScreenState extends ConsumerState<ActivitiesListScreen> {
       return 'N/A';
     }
   }
+
 }

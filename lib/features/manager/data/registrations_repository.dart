@@ -22,66 +22,8 @@ class ManagerRegistrationsRepository {
     return Map<String, dynamic>.from(res.data);
   }
 
-  // Get all registrations (for admin/manager overview)
-  Future<Map<String, dynamic>> getAllRegistrations({
-    int page = 1,
-    int limit = 50,
-    String? search,
-    String? status,
-    int? activityId,
-  }) async {
-    try {
-      print('[REGISTRATIONS_API] Calling /registrations with params: page=$page, limit=$limit, search=$search, status=$status, activityId=$activityId');
-      final res = await _dio.get('/registrations', queryParameters: {
-        'page': page,
-        'limit': limit,
-        if (search != null && search.isNotEmpty) 'search': search,
-        if (status != null && status.isNotEmpty) 'status': status,
-        if (activityId != null) 'activity_id': activityId,
-      });
-      print('[REGISTRATIONS_API] Response status: ${res.statusCode}');
-      print('[REGISTRATIONS_API] Response data keys: ${res.data.keys}');
-      return Map<String, dynamic>.from(res.data);
-    } catch (e) {
-      print('[REGISTRATIONS_API] Error: $e');
-      if (e is DioException) {
-        print('[REGISTRATIONS_API] DioException type: ${e.type}');
-        print('[REGISTRATIONS_API] DioException status: ${e.response?.statusCode}');
-        print('[REGISTRATIONS_API] DioException message: ${e.message}');
-        print('[REGISTRATIONS_API] DioException response data: ${e.response?.data}');
-      }
-      rethrow;
-    }
-  }
+  // Get all registrations - Đã xóa vì không cần thiết
 
-  // Update registration status
-  Future<Map<String, dynamic>> updateRegistrationStatus(int registrationId, String status) async {
-    final res = await _dio.patch('/registrations/$registrationId/status', data: {
-      'status': status,
-    });
-    return Map<String, dynamic>.from(res.data);
-  }
-
-  // Batch update registration statuses
-  Future<Map<String, dynamic>> batchUpdateRegistrationStatuses(List<int> registrationIds, String status) async {
-    final res = await _dio.patch('/registrations/batch-status', data: {
-      'registration_ids': registrationIds,
-      'status': status,
-    });
-    return Map<String, dynamic>.from(res.data);
-  }
-
-  // Delete registration
-  Future<void> deleteRegistration(int registrationId) async {
-    await _dio.delete('/registrations/$registrationId');
-  }
-
-  // Batch delete registrations
-  Future<void> batchDeleteRegistrations(List<int> registrationIds) async {
-    await _dio.delete('/registrations/batch', data: {
-      'registration_ids': registrationIds,
-    });
-  }
 
   // Export registrations to CSV
   Future<List<int>> exportRegistrationsToCSV(int activityId) async {

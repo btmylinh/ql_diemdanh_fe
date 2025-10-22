@@ -18,9 +18,8 @@ import 'features/auth/register_screen.dart';
 // Manager screens (Session 3.3)
 import 'features/manager/presentation/manager_dashboard.dart';
 import 'features/manager/presentation/activity_form.dart';
-import 'features/manager/presentation/registrations_screen.dart';
-import 'features/manager/presentation/batch_registrations_screen.dart';
 import 'features/manager/presentation/activities_list_screen.dart';
+import 'features/manager/presentation/activity_students_screen.dart';
 import 'features/manager/presentation/attendance_session_screen.dart';
 // Admin screens (Session 3.4) - TODO: Implement in future session
 // import 'features/admin/presentation/admin_users.dart';
@@ -49,8 +48,7 @@ class MyApp extends ConsumerWidget {
       GoRoute(path: '/manager/dashboard', builder: (_, __) => const ManagerDashboardScreen()),
       GoRoute(path: '/manager/activity/new', builder: (_, __) => const ActivityFormScreen()),
       GoRoute(path: '/manager/activity/:id/edit', builder: (_, __) => const ActivityFormScreen()),
-      GoRoute(path: '/manager/activity/:id/registrations', builder: (_, __) => const RegistrationsScreen()),
-      GoRoute(path: '/manager/batch-registrations', builder: (_, __) => const BatchRegistrationsScreen()),
+      GoRoute(path: '/manager/activity/:id/students', builder: (_, __) => const ActivityStudentsScreen()),
       GoRoute(path: '/manager/activities', builder: (_, __) => const ActivitiesListScreen()),
       GoRoute(path: '/manager/activity/:id/attendance', builder: (_, __) => const AttendanceSessionScreen()),
 

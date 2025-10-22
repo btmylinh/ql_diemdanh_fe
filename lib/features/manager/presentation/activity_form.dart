@@ -22,7 +22,7 @@ class _ActivityFormScreenState extends ConsumerState<ActivityFormScreen> {
   DateTime? _startTime;
   DateTime? _endTime;
   DateTime? _registrationDeadline;
-  int _status = 2; // Default to upcoming
+  int _status = 1; // Default to draft
   bool _isLoading = false;
 
   @override
@@ -54,20 +54,24 @@ class _ActivityFormScreenState extends ConsumerState<ActivityFormScreen> {
       _nameController.text = activity['name'] ?? '';
       _descriptionController.text = activity['description'] ?? '';
       _locationController.text = activity['location'] ?? '';
-      _maxParticipantsController.text = activity['maxParticipants']?.toString() ?? '';
-      _trainingPointsController.text = activity['trainingPoints']?.toString() ?? '0';
+      _maxParticipantsController.text = activity['max_participants']?.toString() ?? '';
+      _trainingPointsController.text = activity['training_points']?.toString() ?? '0';
       
-      if (activity['startTime'] != null) {
-        _startTime = DateTime.parse(activity['startTime']);
+      if (activity['start_time'] != null) {
+        _startTime = DateTime.parse(activity['start_time']);
       }
-      if (activity['endTime'] != null) {
-        _endTime = DateTime.parse(activity['endTime']);
+      if (activity['end_time'] != null) {
+        _endTime = DateTime.parse(activity['end_time']);
       }
-      if (activity['registrationDeadline'] != null) {
-        _registrationDeadline = DateTime.parse(activity['registrationDeadline']);
+      if (activity['registration_deadline'] != null) {
+        _registrationDeadline = DateTime.parse(activity['registration_deadline']);
       }
       
-      _status = activity['status'] ?? 2;
+      _status = activity['status'] ?? 1;
+      
+      setState(() {
+        // Trigger UI rebuild to show loaded data
+      });
       
       ref.read(activityFormProvider.notifier).setEditing(true);
       ref.read(activityFormProvider.notifier).setActivity(activity);
@@ -215,8 +219,9 @@ class _ActivityFormScreenState extends ConsumerState<ActivityFormScreen> {
         ? int.parse(_trainingPointsController.text) 
         : 0,
       'registration_deadline': _registrationDeadline?.toIso8601String(),
-      'status': formState.isEditing ? _status : 2, // Always set to "sắp diễn ra" for new activities
+      'status': formState.isEditing ? _status : 1, // Let backend determine status based on time
     };
+    
 
     try {
       if (formState.isEditing) {
@@ -228,8 +233,9 @@ class _ActivityFormScreenState extends ConsumerState<ActivityFormScreen> {
       }
       
       if (mounted) {
-        // Invalidate dashboard stats to refresh statistics
+        // Invalidate providers to refresh data
         ref.invalidate(dashboardStatsProvider);
+        ref.invalidate(myActivitiesProvider);
         
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -474,10 +480,10 @@ class _ActivityFormScreenState extends ConsumerState<ActivityFormScreen> {
                               setState(() => _status = value!);
                             },
                             items: const [
-                              DropdownMenuItem(value: 1, child: Text('Đang diễn ra')),
-                              DropdownMenuItem(value: 2, child: Text('Sắp diễn ra')),
+                              DropdownMenuItem(value: 1, child: Text('Sắp diễn ra')),
+                              DropdownMenuItem(value: 2, child: Text('Đang diễn ra')),
                               DropdownMenuItem(value: 3, child: Text('Đã hoàn thành')),
-                              DropdownMenuItem(value: 0, child: Text('Đã hủy')),
+                              DropdownMenuItem(value: 4, child: Text('Đã hủy')),
                             ],
                           ),
                         ),
@@ -529,10 +535,10 @@ class _ActivityFormScreenState extends ConsumerState<ActivityFormScreen> {
 
   String _getStatusText(int status) {
     switch (status) {
-      case 1: return 'Đang diễn ra';
-      case 2: return 'Sắp diễn ra';
+      case 1: return 'Sắp diễn ra';
+      case 2: return 'Đang diễn ra';
       case 3: return 'Đã hoàn thành';
-      case 0: return 'Đã hủy';
+      case 4: return 'Đã hủy';
       default: return 'Không xác định';
     }
   }
