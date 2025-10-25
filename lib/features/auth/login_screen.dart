@@ -71,7 +71,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           controller: _email,
                           keyboardType: TextInputType.emailAddress,
                           onChanged: (value) {
-                            // Clear error khi người dùng bắt đầu nhập
                             if (state.error != null) {
                               ref.read(authControllerProvider.notifier).clearError();
                             }
@@ -96,7 +95,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           controller: _password,
                           obscureText: _obscure,
                           onChanged: (value) {
-                            // Clear error khi người dùng bắt đầu nhập
                             if (state.error != null) {
                               ref.read(authControllerProvider.notifier).clearError();
                             }
@@ -175,56 +173,26 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                               borderRadius: BorderRadius.circular(8),
                               border: Border.all(color: Colors.red.shade200),
                             ),
-                            child: Column(
+                            child: Row(
                               children: [
-                                Row(
-                                  children: [
-                                    Icon(
-                                      state.error!.contains('kết nối') || state.error!.contains('mạng')
-                                          ? Icons.wifi_off
-                                          : Icons.error_outline,
-                                      color: Colors.red.shade600,
-                                      size: 20,
-                                    ),
-                                    const SizedBox(width: 8),
-                                    Expanded(
-                                      child: Text(
-                                        state.error!,
-                                        style: TextStyle(
-                                          color: Colors.red.shade700,
-                                          fontWeight: FontWeight.w500,
-                                          fontSize: 14,
-                                        ),
-                                      ),
-                                    ),
-                                  ],
+                                Icon(
+                                  state.error!.contains('kết nối') || state.error!.contains('mạng')
+                                      ? Icons.wifi_off
+                                      : Icons.error_outline,
+                                  color: Colors.red.shade600,
+                                  size: 20,
                                 ),
-                                // Nút thử lại cho lỗi mạng
-                                if (state.error!.contains('kết nối') || state.error!.contains('mạng')) ...[
-                                  const SizedBox(height: 8),
-                                  SizedBox(
-                                    width: double.infinity,
-                                    child: OutlinedButton.icon(
-                                      onPressed: state.loading ? null : () async {
-                                        if (_form.currentState!.validate()) {
-                                          final ok = await ref
-                                              .read(authControllerProvider.notifier)
-                                              .login(_email.text.trim(), _password.text);
-                                          if (!mounted) return;
-                                          if (ok) {
-                                            context.go('/home');
-                                          }
-                                        }
-                                      },
-                                      icon: const Icon(Icons.refresh, size: 16),
-                                      label: const Text('Thử lại'),
-                                      style: OutlinedButton.styleFrom(
-                                        foregroundColor: Colors.red.shade700,
-                                        side: BorderSide(color: Colors.red.shade300),
-                                      ),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    state.error!,
+                                    style: TextStyle(
+                                      color: Colors.red.shade700,
+                                      fontWeight: FontWeight.w500,
+                                      fontSize: 14,
                                     ),
                                   ),
-                                ],
+                                ),
                               ],
                             ),
                           ),

@@ -11,46 +11,22 @@ String baseUrl() {
 final storage = const FlutterSecureStorage();
 
 Dio buildDio() {
-  final dio = Dio(BaseOptions(
-    baseUrl: baseUrl(), 
-    connectTimeout: const Duration(seconds: 15),
-    receiveTimeout: const Duration(seconds: 15),
-    sendTimeout: const Duration(seconds: 15),
-  ));
-  dev.log('[API] Base URL: ${dio.options.baseUrl}');
-  
+  final dio = Dio(BaseOptions(baseUrl: baseUrl(), connectTimeout: const Duration(seconds: 10)));
+  dev.log('[API] Base URL: ${dio.options.baseUrl}'); // Log base URL
   dio.interceptors.add(InterceptorsWrapper(
     onRequest: (options, handler) async {
       final token = await storage.read(key: 'access_token');
-      dev.log('[API][REQ] ${options.method} ${options.uri}');
-      dev.log('[API][TOKEN] Token: ${token != null ? 'Present (${token.length} chars)' : 'Missing'}');
+      dev.log('[API][REQ] ${options.method} ${options.uri}'); // Log request
+      dev.log('[API][TOKEN] Token: ${token != null ? 'Present (${token.length} chars)' : 'Missing'}'); // Log token status
       if (token != null) options.headers['Authorization'] = 'Bearer $token';
       handler.next(options);
     },
     onResponse: (response, handler) {
-      dev.log('[API][RES] ${response.requestOptions.method} ${response.requestOptions.uri} Status: ${response.statusCode}');
+      dev.log('[API][RES] ${response.requestOptions.method} ${response.requestOptions.uri} Status: ${response.statusCode}'); // Log response
       handler.next(response);
     },
     onError: (DioException e, handler) {
-      dev.log('[API][ERR] ${e.requestOptions.method} ${e.requestOptions.uri} Type: ${e.type} Status: ${e.response?.statusCode} Message: ${e.message}');
-      
-      // Xử lý lỗi mạng cụ thể
-      if (e.type == DioExceptionType.connectionTimeout ||
-          e.type == DioExceptionType.sendTimeout ||
-          e.type == DioExceptionType.receiveTimeout) {
-        e = DioException(
-          requestOptions: e.requestOptions,
-          error: 'Kết nối quá thời gian. Vui lòng thử lại.',
-          type: e.type,
-        );
-      } else if (e.type == DioExceptionType.connectionError) {
-        e = DioException(
-          requestOptions: e.requestOptions,
-          error: 'Không thể kết nối đến server. Vui lòng kiểm tra kết nối mạng và thử lại.',
-          type: e.type,
-        );
-      }
-      
+      dev.log('[API][ERR] ${e.requestOptions.method} ${e.requestOptions.uri} Type: ${e.type} Status: ${e.response?.statusCode} Message: ${e.message}'); // Log error
       handler.next(e);
     },
   ));
