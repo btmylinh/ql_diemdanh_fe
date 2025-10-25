@@ -71,7 +71,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                           'class': _clazz.text.isEmpty ? null : _clazz.text,
                           'phone': _phone.text.isEmpty ? null : _phone.text,
                         });
-                        if (ok && mounted) context.go('/home'); 
+                        if (ok && mounted) context.go('/'); 
                       }
                     },
                     child: state.loading ? const CircularProgressIndicator() : const Text('Đăng ký'),

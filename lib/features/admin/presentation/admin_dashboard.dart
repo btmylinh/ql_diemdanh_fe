@@ -4,51 +4,25 @@ import 'package:go_router/go_router.dart';
 import '../../../theme.dart';
 import '../../auth/user_provider.dart';
 import '../../auth/auth_provider.dart';
-import '../data/activities_providers.dart';
+import '../../manager/data/activities_providers.dart';
+// removed session state widgets import
 
-class ManagerDashboardScreen extends ConsumerWidget {
-  const ManagerDashboardScreen({super.key});
-
-  // Dialog methods for unimplemented features
-
-  void _showProfileDialog(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Thông tin cá nhân'),
-        content: const Text('Tính năng quản lý thông tin cá nhân sẽ được triển khai trong phiên bản tiếp theo.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Đóng'),
-          ),
-        ],
-      ),
-    );
-  }
+class AdminDashboardScreen extends ConsumerWidget {
+  const AdminDashboardScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final user = ref.watch(userProvider);
     final statsAsync = ref.watch(dashboardStatsProvider);
     
-    // Listen for route changes to refresh stats when returning from activity form
-    ref.listen(dashboardStatsProvider, (previous, next) {
-      // This will trigger a rebuild when stats are invalidated
-    });
-    
     return Scaffold(
       backgroundColor: Colors.grey[50],
       appBar: AppBar(
         backgroundColor: kBlue,
         foregroundColor: Colors.white,
-        title: Text('Xin chào, ${user.name ?? 'Quản lý'}'),
+        title: Text('Xin chào, ${user.name ?? 'Admin'}'),
         elevation: 0,
         actions: [
-          IconButton(
-            icon: const Icon(Icons.person),
-            onPressed: () => _showProfileDialog(context),
-          ),
           IconButton(
             icon: const Icon(Icons.logout),
             onPressed: () {
@@ -95,7 +69,7 @@ class ManagerDashboardScreen extends ConsumerWidget {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              'Dashboard Quản lý',
+                              'Dashboard Quản trị',
                               style: TextStyle(
                                 fontSize: 20,
                                 fontWeight: FontWeight.bold,
@@ -104,7 +78,7 @@ class ManagerDashboardScreen extends ConsumerWidget {
                             ),
                             const SizedBox(height: 4),
                             Text(
-                              'Quản lý hoạt động và điểm danh',
+                              'Quản lý hệ thống và thống kê tổng quan',
                               style: TextStyle(color: Colors.grey[600]),
                             ),
                           ],
@@ -119,7 +93,7 @@ class ManagerDashboardScreen extends ConsumerWidget {
               
               // Statistics Cards
               Text(
-                'Thống kê hoạt động của tôi',
+                'Thống kê tổng quan hệ thống',
                 style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
@@ -172,9 +146,9 @@ class ManagerDashboardScreen extends ConsumerWidget {
               
               const SizedBox(height: 24),
               
-              // Quick Actions
+              // Admin Actions
               Text(
-                'Thao tác nhanh',
+                'Quản trị hệ thống',
                 style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
@@ -191,30 +165,39 @@ class ManagerDashboardScreen extends ConsumerWidget {
                 mainAxisSpacing: 16,
                 childAspectRatio: 0.9,
                 children: [
-                  _QuickActionCard(
-                    icon: Icons.add_circle_outline,
-                    title: 'Tạo hoạt động',
-                    subtitle: 'Thêm hoạt động mới',
-                    color: kBlue,
-                    onTap: () => context.push('/manager/activity/new'),
+                  _buildAdminCard(
+                    context,
+                    title: 'Quản lý người dùng',
+                    icon: Icons.people,
+                    color: Colors.blue,
+                    onTap: () => context.go('/admin/users'),
                   ),
-                  _QuickActionCard(
-                    icon: Icons.event_note,
-                    title: 'Hoạt động của tôi',
-                    subtitle: 'Quản lý hoạt động',
+                  _buildAdminCard(
+                    context,
+                    title: 'Quản lý hoạt động',
+                    icon: Icons.event,
+                    color: Colors.green,
+                    onTap: () => context.go('/admin/activities'),
+                  ),
+                  _buildAdminCard(
+                    context,
+                    title: 'Sao lưu & Khôi phục',
+                    icon: Icons.backup,
                     color: Colors.orange,
-                    onTap: () => context.push('/manager/activities'),
+                    onTap: () => context.go('/admin/backup'),
+                  ),
+                  _buildAdminCard(
+                    context,
+                    title: 'Báo cáo thống kê',
+                    icon: Icons.analytics,
+                    color: Colors.purple,
+                    onTap: () => context.go('/admin/reports'),
                   ),
                 ],
               ),
             ],
           ),
         ),
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () => context.push('/manager/activity/new'),
-        backgroundColor: kBlue,
-        child: const Icon(Icons.add, color: Colors.white),
       ),
     );
   }
@@ -226,7 +209,7 @@ class ManagerDashboardScreen extends ConsumerWidget {
           children: [
             Expanded(
               child: _StatCard(
-                title: 'Hoạt động của tôi',
+                title: 'Tổng hoạt động',
                 value: '${stats['totalActivities'] ?? 0}',
                 icon: Icons.event,
                 color: kBlue,
@@ -274,6 +257,49 @@ class ManagerDashboardScreen extends ConsumerWidget {
           isFullWidth: true,
         ),
       ],
+    );
+  }
+
+  Widget _buildAdminCard(
+    BuildContext context, {
+    required String title,
+    required IconData icon,
+    required Color color,
+    required VoidCallback onTap,
+  }) {
+    return Card(
+      elevation: 4,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(8),
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: color.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(50),
+                ),
+                child: Icon(
+                  icon,
+                  size: 32,
+                  color: color,
+                ),
+              ),
+              const SizedBox(height: 13),
+              Text(
+                title,
+                style: Theme.of(context).textTheme.titleLarge,
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 8),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }
@@ -335,68 +361,6 @@ class _StatCard extends StatelessWidget {
               ),
             ),
           ],
-        ),
-      ),
-    );
-  }
-}
-
-class _QuickActionCard extends StatelessWidget {
-  const _QuickActionCard({
-    required this.icon,
-    required this.title,
-    required this.subtitle,
-    required this.color,
-    required this.onTap,
-  });
-  
-  final IconData icon;
-  final String title;
-  final String subtitle;
-  final Color color;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(12),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: color.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Icon(icon, color: color, size: 32),
-              ),
-              const SizedBox(height: 12),
-              Text(
-                title,
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                ),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 4),
-              Text(
-                subtitle,
-                style: TextStyle(
-                  fontSize: 12,
-                  color: Colors.grey[600],
-                ),
-                textAlign: TextAlign.center,
-              ),
-            ],
-          ),
         ),
       ),
     );

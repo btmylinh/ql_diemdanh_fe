@@ -4,8 +4,8 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'dart:developer' as dev;
 
 String baseUrl() {
-  if (Platform.isAndroid) return 'http://10.0.2.2:3000';
-  return 'http://127.0.0.1:3000';
+  if (Platform.isAndroid) return 'http://10.0.2.2:4000';
+  return 'http://127.0.0.1:4000';
 }
 
 final storage = const FlutterSecureStorage();
@@ -31,4 +31,68 @@ Dio buildDio() {
     },
   ));
   return dio;
+}
+
+class ApiClient {
+  final Dio _dio = buildDio();
+
+  Future<Map<String, dynamic>> get(String path, [Map<String, String>? queryParams]) async {
+    try {
+      final response = await _dio.get(path, queryParameters: queryParams);
+      return response.data;
+    } on DioException catch (e) {
+      if (e.response != null) {
+        return e.response!.data;
+      }
+      rethrow;
+    }
+  }
+
+  Future<Map<String, dynamic>> post(String path, Map<String, dynamic> data) async {
+    try {
+      final response = await _dio.post(path, data: data);
+      return response.data;
+    } on DioException catch (e) {
+      if (e.response != null) {
+        return e.response!.data;
+      }
+      rethrow;
+    }
+  }
+
+  Future<Map<String, dynamic>> put(String path, Map<String, dynamic> data) async {
+    try {
+      final response = await _dio.put(path, data: data);
+      return response.data;
+    } on DioException catch (e) {
+      if (e.response != null) {
+        return e.response!.data;
+      }
+      rethrow;
+    }
+  }
+
+  Future<Map<String, dynamic>> delete(String path) async {
+    try {
+      final response = await _dio.delete(path);
+      return response.data;
+    } on DioException catch (e) {
+      if (e.response != null) {
+        return e.response!.data;
+      }
+      rethrow;
+    }
+  }
+
+  Future<Map<String, dynamic>> patch(String path, Map<String, dynamic> data) async {
+    try {
+      final response = await _dio.patch(path, data: data);
+      return response.data;
+    } on DioException catch (e) {
+      if (e.response != null) {
+        return e.response!.data;
+      }
+      rethrow;
+    }
+  }
 }

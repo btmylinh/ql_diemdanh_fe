@@ -66,10 +66,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                             .login(_email.text.trim(), _password.text);
                         if (!mounted) return;
                         if (ok) {
-                          debugPrint('[LOGIN_SCREEN] Login OK -> navigating to /home');
-                          context.push('/home'); 
-                        } else {
-                          debugPrint('[LOGIN_SCREEN] Login failed, stay on login');
+                          context.go('/');
                         }
                       }
                     },
