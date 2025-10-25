@@ -18,7 +18,7 @@ class _ActivityFormScreenState extends ConsumerState<ActivityFormScreen> {
   final _locationController = TextEditingController();
   final _maxParticipantsController = TextEditingController();
   final _trainingPointsController = TextEditingController();
-  
+
   DateTime? _startTime;
   DateTime? _endTime;
   DateTime? _registrationDeadline;
@@ -32,8 +32,12 @@ class _ActivityFormScreenState extends ConsumerState<ActivityFormScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final router = GoRouterState.of(context);
       final activityId = router.pathParameters['id'];
-      if (activityId != null) {
-        _loadActivity(int.parse(activityId));
+      // Kiểm tra null và đảm bảo id là số hợp lệ
+      if (activityId != null && activityId.isNotEmpty && activityId != 'new') {
+        final id = int.tryParse(activityId);
+        if (id != null && id > 0) {
+          _loadActivity(id);
+        }
       }
     });
   }
@@ -54,9 +58,11 @@ class _ActivityFormScreenState extends ConsumerState<ActivityFormScreen> {
       _nameController.text = activity['name'] ?? '';
       _descriptionController.text = activity['description'] ?? '';
       _locationController.text = activity['location'] ?? '';
-      _maxParticipantsController.text = activity['max_participants']?.toString() ?? '';
-      _trainingPointsController.text = activity['training_points']?.toString() ?? '0';
-      
+      _maxParticipantsController.text =
+          activity['max_participants']?.toString() ?? '';
+      _trainingPointsController.text =
+          activity['training_points']?.toString() ?? '0';
+
       if (activity['start_time'] != null) {
         _startTime = DateTime.parse(activity['start_time']);
       }
@@ -64,22 +70,24 @@ class _ActivityFormScreenState extends ConsumerState<ActivityFormScreen> {
         _endTime = DateTime.parse(activity['end_time']);
       }
       if (activity['registration_deadline'] != null) {
-        _registrationDeadline = DateTime.parse(activity['registration_deadline']);
+        _registrationDeadline = DateTime.parse(
+          activity['registration_deadline'],
+        );
       }
-      
+
       _status = activity['status'] ?? 1;
-      
+
       setState(() {
         // Trigger UI rebuild to show loaded data
       });
-      
+
       ref.read(activityFormProvider.notifier).setEditing(true);
       ref.read(activityFormProvider.notifier).setActivity(activity);
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Lỗi tải hoạt động: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Lỗi tải hoạt động: $e')));
       }
     }
   }
@@ -87,19 +95,21 @@ class _ActivityFormScreenState extends ConsumerState<ActivityFormScreen> {
   Future<void> _selectDateTime(bool isStartTime) async {
     final DateTime? picked = await showDatePicker(
       context: context,
-      initialDate: isStartTime ? (_startTime ?? DateTime.now()) : (_endTime ?? DateTime.now()),
+      initialDate: isStartTime
+          ? (_startTime ?? DateTime.now())
+          : (_endTime ?? DateTime.now()),
       firstDate: DateTime.now(),
       lastDate: DateTime.now().add(const Duration(days: 365)),
     );
-    
+
     if (picked != null) {
       final TimeOfDay? time = await showTimePicker(
         context: context,
-        initialTime: isStartTime 
-          ? TimeOfDay.fromDateTime(_startTime ?? DateTime.now())
-          : TimeOfDay.fromDateTime(_endTime ?? DateTime.now()),
+        initialTime: isStartTime
+            ? TimeOfDay.fromDateTime(_startTime ?? DateTime.now())
+            : TimeOfDay.fromDateTime(_endTime ?? DateTime.now()),
       );
-      
+
       if (time != null) {
         final DateTime selectedDateTime = DateTime(
           picked.year,
@@ -108,7 +118,7 @@ class _ActivityFormScreenState extends ConsumerState<ActivityFormScreen> {
           time.hour,
           time.minute,
         );
-        
+
         setState(() {
           if (isStartTime) {
             _startTime = selectedDateTime;
@@ -117,11 +127,18 @@ class _ActivityFormScreenState extends ConsumerState<ActivityFormScreen> {
               _endTime = selectedDateTime.add(const Duration(hours: 2));
             }
             // Clear registration deadline if it's now after or equal to start time
-            if (_registrationDeadline != null && 
-                (_registrationDeadline!.isAfter(selectedDateTime) || _registrationDeadline!.isAtSameMomentAs(selectedDateTime))) {
+            if (_registrationDeadline != null &&
+                (_registrationDeadline!.isAfter(selectedDateTime) ||
+                    _registrationDeadline!.isAtSameMomentAs(
+                      selectedDateTime,
+                    ))) {
               _registrationDeadline = null;
               ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Hạn chót đăng ký đã được xóa vì sau thời gian bắt đầu mới')),
+                const SnackBar(
+                  content: Text(
+                    'Hạn chót đăng ký đã được xóa vì sau thời gian bắt đầu mới',
+                  ),
+                ),
               );
             }
           } else {
@@ -136,24 +153,32 @@ class _ActivityFormScreenState extends ConsumerState<ActivityFormScreen> {
     // Ensure we have a start time before allowing deadline selection
     if (_startTime == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Vui lòng chọn thời gian bắt đầu trước khi đặt hạn chót đăng ký')),
+        const SnackBar(
+          content: Text(
+            'Vui lòng chọn thời gian bắt đầu trước khi đặt hạn chót đăng ký',
+          ),
+        ),
       );
       return;
     }
-    
+
     final DateTime? picked = await showDatePicker(
       context: context,
       initialDate: _registrationDeadline ?? DateTime.now(),
       firstDate: DateTime.now(),
-      lastDate: _startTime!.subtract(const Duration(minutes: 1)), // Must be at least 1 minute before start time
+      lastDate: _startTime!.subtract(
+        const Duration(minutes: 1),
+      ), // Must be at least 1 minute before start time
     );
-    
+
     if (picked != null) {
       final TimeOfDay? time = await showTimePicker(
         context: context,
-        initialTime: TimeOfDay.fromDateTime(_registrationDeadline ?? DateTime.now()),
+        initialTime: TimeOfDay.fromDateTime(
+          _registrationDeadline ?? DateTime.now(),
+        ),
       );
-      
+
       if (time != null) {
         final DateTime selectedDateTime = DateTime(
           picked.year,
@@ -162,7 +187,7 @@ class _ActivityFormScreenState extends ConsumerState<ActivityFormScreen> {
           time.hour,
           time.minute,
         );
-        
+
         setState(() {
           _registrationDeadline = selectedDateTime;
         });
@@ -172,32 +197,48 @@ class _ActivityFormScreenState extends ConsumerState<ActivityFormScreen> {
 
   Future<void> _saveActivity() async {
     if (!_formKey.currentState!.validate()) return;
-    
-    if (_startTime == null || _endTime == null) {
+
+    // Kiểm tra null an toàn trước khi dùng dấu !
+    if (_startTime == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Vui lòng chọn thời gian bắt đầu và kết thúc')),
+        const SnackBar(content: Text('Vui lòng chọn thời gian bắt đầu')),
       );
       return;
     }
-    
+    if (_endTime == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Vui lòng chọn thời gian kết thúc')),
+      );
+      return;
+    }
     if (_endTime!.isBefore(_startTime!)) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Thời gian kết thúc phải sau thời gian bắt đầu')),
+        const SnackBar(
+          content: Text('Thời gian kết thúc phải sau thời gian bắt đầu'),
+        ),
       );
       return;
     }
-    
+
     // Validate registration deadline
     if (_registrationDeadline != null) {
-      if (_registrationDeadline!.isAfter(_startTime!) || _registrationDeadline!.isAtSameMomentAs(_startTime!)) {
+      if (_startTime != null &&
+          (_registrationDeadline!.isAfter(_startTime!) ||
+              _registrationDeadline!.isAtSameMomentAs(_startTime!))) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Hạn chót đăng ký phải trước thời gian bắt đầu hoạt động')),
+          const SnackBar(
+            content: Text(
+              'Hạn chót đăng ký phải trước thời gian bắt đầu hoạt động',
+            ),
+          ),
         );
         return;
       }
       if (_registrationDeadline!.isBefore(DateTime.now())) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Hạn chót đăng ký không được ở quá khứ')),
+          const SnackBar(
+            content: Text('Hạn chót đăng ký không được ở quá khứ'),
+          ),
         );
         return;
       }
@@ -210,36 +251,49 @@ class _ActivityFormScreenState extends ConsumerState<ActivityFormScreen> {
       'name': _nameController.text.trim(),
       'description': _descriptionController.text.trim(),
       'location': _locationController.text.trim(),
-      'start_time': _startTime!.toIso8601String(),
-      'end_time': _endTime!.toIso8601String(),
-      'max_participants': _maxParticipantsController.text.isNotEmpty 
-        ? int.parse(_maxParticipantsController.text) 
-        : null,
-      'training_points': _trainingPointsController.text.isNotEmpty 
-        ? int.parse(_trainingPointsController.text) 
-        : 0,
-      'registration_deadline': _registrationDeadline?.toIso8601String(),
-      'status': formState.isEditing ? _status : 1, // Let backend determine status based on time
+      'start_time': _startTime != null ? _startTime!.toIso8601String() : '',
+      'end_time': _endTime != null ? _endTime!.toIso8601String() : '',
+      'max_participants': _maxParticipantsController.text.isNotEmpty
+          ? int.parse(_maxParticipantsController.text)
+          : null,
+      'training_points': _trainingPointsController.text.isNotEmpty
+          ? int.parse(_trainingPointsController.text)
+          : 0,
+      'registration_deadline': _registrationDeadline != null
+          ? _registrationDeadline!.toIso8601String()
+          : null,
+      'status': formState.isEditing
+          ? _status
+          : 1, // Let backend determine status based on time
     };
-    
 
     try {
       if (formState.isEditing) {
         final router = GoRouterState.of(context);
-        final activityId = int.parse(router.pathParameters['id']!);
-        await ref.read(activityFormProvider.notifier).updateActivity(activityId, data);
+        final activityIdStr = router.pathParameters['id'];
+        if (activityIdStr == null) {
+          throw Exception('Không tìm thấy id hoạt động để cập nhật');
+        }
+        final activityId = int.parse(activityIdStr);
+        await ref
+            .read(activityFormProvider.notifier)
+            .updateActivity(activityId, data);
       } else {
         await ref.read(activityFormProvider.notifier).createActivity(data);
       }
-      
+
       if (mounted) {
         // Invalidate providers to refresh data
         ref.invalidate(dashboardStatsProvider);
         ref.invalidate(myActivitiesProvider);
-        
+
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(formState.isEditing ? 'Cập nhật hoạt động thành công!' : 'Tạo hoạt động thành công!'),
+            content: Text(
+              formState.isEditing
+                  ? 'Cập nhật hoạt động thành công!'
+                  : 'Tạo hoạt động thành công!',
+            ),
             backgroundColor: Colors.green,
           ),
         );
@@ -247,9 +301,9 @@ class _ActivityFormScreenState extends ConsumerState<ActivityFormScreen> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Lỗi: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Lỗi: $e')));
       }
     } finally {
       if (mounted) {
@@ -262,7 +316,7 @@ class _ActivityFormScreenState extends ConsumerState<ActivityFormScreen> {
   Widget build(BuildContext context) {
     final formState = ref.watch(activityFormProvider);
     final isEditing = formState.isEditing;
-    
+
     return Scaffold(
       backgroundColor: Colors.grey[50],
       appBar: AppBar(
@@ -288,7 +342,9 @@ class _ActivityFormScreenState extends ConsumerState<ActivityFormScreen> {
               // Basic Information Card
               Card(
                 elevation: 2,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
                 child: Padding(
                   padding: const EdgeInsets.all(16),
                   child: Column(
@@ -303,7 +359,7 @@ class _ActivityFormScreenState extends ConsumerState<ActivityFormScreen> {
                         ),
                       ),
                       const SizedBox(height: 16),
-                      
+
                       // Activity Name
                       TextFormField(
                         controller: _nameController,
@@ -321,7 +377,7 @@ class _ActivityFormScreenState extends ConsumerState<ActivityFormScreen> {
                         },
                       ),
                       const SizedBox(height: 16),
-                      
+
                       // Description
                       TextFormField(
                         controller: _descriptionController,
@@ -334,7 +390,7 @@ class _ActivityFormScreenState extends ConsumerState<ActivityFormScreen> {
                         maxLines: 3,
                       ),
                       const SizedBox(height: 16),
-                      
+
                       // Location
                       TextFormField(
                         controller: _locationController,
@@ -346,7 +402,7 @@ class _ActivityFormScreenState extends ConsumerState<ActivityFormScreen> {
                         ),
                       ),
                       const SizedBox(height: 16),
-                      
+
                       // Max Participants
                       TextFormField(
                         controller: _maxParticipantsController,
@@ -368,7 +424,7 @@ class _ActivityFormScreenState extends ConsumerState<ActivityFormScreen> {
                         },
                       ),
                       const SizedBox(height: 16),
-                      
+
                       // Training Points
                       TextFormField(
                         controller: _trainingPointsController,
@@ -393,13 +449,15 @@ class _ActivityFormScreenState extends ConsumerState<ActivityFormScreen> {
                   ),
                 ),
               ),
-              
+
               const SizedBox(height: 16),
-              
+
               // Time and Status Card
               Card(
                 elevation: 2,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
                 child: Padding(
                   padding: const EdgeInsets.all(16),
                   child: Column(
@@ -414,42 +472,48 @@ class _ActivityFormScreenState extends ConsumerState<ActivityFormScreen> {
                         ),
                       ),
                       const SizedBox(height: 16),
-                      
+
                       // Start Time
                       ListTile(
                         leading: const Icon(Icons.play_circle_outline),
                         title: const Text('Thời gian bắt đầu *'),
-                        subtitle: Text(_startTime != null 
-                          ? '${_startTime!.day}/${_startTime!.month}/${_startTime!.year} ${_startTime!.hour.toString().padLeft(2, '0')}:${_startTime!.minute.toString().padLeft(2, '0')}'
-                          : 'Chọn thời gian bắt đầu'),
+                        subtitle: Text(
+                          _startTime != null
+                              ? '${_startTime!.day}/${_startTime!.month}/${_startTime!.year} ${_startTime!.hour.toString().padLeft(2, '0')}:${_startTime!.minute.toString().padLeft(2, '0')}'
+                              : 'Chọn thời gian bắt đầu',
+                        ),
                         trailing: const Icon(Icons.arrow_forward_ios),
                         onTap: () => _selectDateTime(true),
                       ),
-                      
+
                       const Divider(),
-                      
+
                       // End Time
                       ListTile(
                         leading: const Icon(Icons.stop_circle),
                         title: const Text('Thời gian kết thúc *'),
-                        subtitle: Text(_endTime != null 
-                          ? '${_endTime!.day}/${_endTime!.month}/${_endTime!.year} ${_endTime!.hour.toString().padLeft(2, '0')}:${_endTime!.minute.toString().padLeft(2, '0')}'
-                          : 'Chọn thời gian kết thúc'),
+                        subtitle: Text(
+                          _endTime != null
+                              ? '${_endTime!.day}/${_endTime!.month}/${_endTime!.year} ${_endTime!.hour.toString().padLeft(2, '0')}:${_endTime!.minute.toString().padLeft(2, '0')}'
+                              : 'Chọn thời gian kết thúc',
+                        ),
                         trailing: const Icon(Icons.arrow_forward_ios),
                         onTap: () => _selectDateTime(false),
                       ),
-                      
+
                       const Divider(),
-                      
+
                       // Registration Deadline
                       ListTile(
                         leading: const Icon(Icons.access_time),
                         title: const Text('Hạn chót đăng ký'),
-                        subtitle: Text(_registrationDeadline != null 
-                          ? '${_registrationDeadline!.day}/${_registrationDeadline!.month}/${_registrationDeadline!.year} ${_registrationDeadline!.hour.toString().padLeft(2, '0')}:${_registrationDeadline!.minute.toString().padLeft(2, '0')}'
-                          : _startTime != null 
-                            ? 'Chọn hạn chót đăng ký (phải trước ${_startTime!.day}/${_startTime!.month}/${_startTime!.year})'
-                            : 'Chọn hạn chót đăng ký (tùy chọn)'),
+                        subtitle: Text(
+                          _registrationDeadline != null
+                              ? '${_registrationDeadline!.day}/${_registrationDeadline!.month}/${_registrationDeadline!.year} ${_registrationDeadline!.hour.toString().padLeft(2, '0')}:${_registrationDeadline!.minute.toString().padLeft(2, '0')}'
+                              : _startTime != null
+                              ? 'Chọn hạn chót đăng ký (phải trước ${_startTime!.day}/${_startTime!.month}/${_startTime!.year})'
+                              : 'Chọn hạn chót đăng ký (tùy chọn)',
+                        ),
                         trailing: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
@@ -465,9 +529,9 @@ class _ActivityFormScreenState extends ConsumerState<ActivityFormScreen> {
                         ),
                         onTap: () => _selectRegistrationDeadline(),
                       ),
-                      
+
                       const Divider(),
-                      
+
                       // Status - Only show when editing existing activity
                       if (isEditing) ...[
                         ListTile(
@@ -480,24 +544,32 @@ class _ActivityFormScreenState extends ConsumerState<ActivityFormScreen> {
                               setState(() => _status = value!);
                             },
                             items: const [
-                              DropdownMenuItem(value: 1, child: Text('Sắp diễn ra')),
-                              DropdownMenuItem(value: 2, child: Text('Đang diễn ra')),
-                              DropdownMenuItem(value: 3, child: Text('Đã hoàn thành')),
+                              DropdownMenuItem(
+                                value: 1,
+                                child: Text('Sắp diễn ra'),
+                              ),
+                              DropdownMenuItem(
+                                value: 2,
+                                child: Text('Đang diễn ra'),
+                              ),
+                              DropdownMenuItem(
+                                value: 3,
+                                child: Text('Đã hoàn thành'),
+                              ),
                               DropdownMenuItem(value: 4, child: Text('Đã hủy')),
                             ],
                           ),
                         ),
                       ] else ...[
                         // Show info about default status when creating new activity
-                       
                       ],
                     ],
                   ),
                 ),
               ),
-              
+
               const SizedBox(height: 24),
-              
+
               // Save Button
               SizedBox(
                 width: double.infinity,
@@ -512,18 +584,23 @@ class _ActivityFormScreenState extends ConsumerState<ActivityFormScreen> {
                     ),
                   ),
                   child: _isLoading
-                    ? const SizedBox(
-                        height: 20,
-                        width: 20,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                      ? const SizedBox(
+                          height: 20,
+                          width: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            valueColor: AlwaysStoppedAnimation<Color>(
+                              Colors.white,
+                            ),
+                          ),
+                        )
+                      : Text(
+                          isEditing ? 'Cập nhật hoạt động' : 'Tạo hoạt động',
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
-                      )
-                    : Text(
-                        isEditing ? 'Cập nhật hoạt động' : 'Tạo hoạt động',
-                        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                      ),
                 ),
               ),
             ],
@@ -535,11 +612,16 @@ class _ActivityFormScreenState extends ConsumerState<ActivityFormScreen> {
 
   String _getStatusText(int status) {
     switch (status) {
-      case 1: return 'Sắp diễn ra';
-      case 2: return 'Đang diễn ra';
-      case 3: return 'Đã hoàn thành';
-      case 4: return 'Đã hủy';
-      default: return 'Không xác định';
+      case 1:
+        return 'Sắp diễn ra';
+      case 2:
+        return 'Đang diễn ra';
+      case 3:
+        return 'Đã hoàn thành';
+      case 4:
+        return 'Đã hủy';
+      default:
+        return 'Không xác định';
     }
   }
 
@@ -548,7 +630,9 @@ class _ActivityFormScreenState extends ConsumerState<ActivityFormScreen> {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Xác nhận xóa'),
-        content: const Text('Bạn có chắc chắn muốn xóa hoạt động này? Hành động này không thể hoàn tác.'),
+        content: const Text(
+          'Bạn có chắc chắn muốn xóa hoạt động này? Hành động này không thể hoàn tác.',
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
@@ -569,16 +653,16 @@ class _ActivityFormScreenState extends ConsumerState<ActivityFormScreen> {
 
   Future<void> _deleteActivity() async {
     setState(() => _isLoading = true);
-    
+
     try {
       final router = GoRouterState.of(context);
       final activityId = int.parse(router.pathParameters['id']!);
       await ref.read(activityFormProvider.notifier).deleteActivity(activityId);
-      
+
       if (mounted) {
         // Invalidate dashboard stats to refresh statistics
         ref.invalidate(dashboardStatsProvider);
-        
+
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Xóa hoạt động thành công!'),
@@ -589,9 +673,9 @@ class _ActivityFormScreenState extends ConsumerState<ActivityFormScreen> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Lỗi xóa hoạt động: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Lỗi xóa hoạt động: $e')));
       }
     } finally {
       if (mounted) {

@@ -4,8 +4,8 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'dart:developer' as dev;
 
 String baseUrl() {
-  if (Platform.isAndroid) return 'http://10.0.2.2:4000';
-  return 'http://127.0.0.1:4000';
+  if (Platform.isAndroid) return 'http://10.0.2.2:3000'; // Android Emulator
+  return 'http://127.0.0.1:3000'; 
 }
 
 final storage = const FlutterSecureStorage();
