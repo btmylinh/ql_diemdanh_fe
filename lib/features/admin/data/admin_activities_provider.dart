@@ -8,8 +8,6 @@ class AdminActivitiesState {
   final String? error;
   final String searchQuery;
   final String statusFilter;
-  final String sortBy;
-  final String sortOrder;
 
   const AdminActivitiesState({
     this.activities = const [],
@@ -17,8 +15,6 @@ class AdminActivitiesState {
     this.error,
     this.searchQuery = '',
     this.statusFilter = 'all',
-    this.sortBy = 'created_at',
-    this.sortOrder = 'desc',
   });
 
   AdminActivitiesState copyWith({
@@ -27,8 +23,6 @@ class AdminActivitiesState {
     String? error,
     String? searchQuery,
     String? statusFilter,
-    String? sortBy,
-    String? sortOrder,
   }) {
     return AdminActivitiesState(
       activities: activities ?? this.activities,
@@ -36,8 +30,6 @@ class AdminActivitiesState {
       error: error ?? this.error,
       searchQuery: searchQuery ?? this.searchQuery,
       statusFilter: statusFilter ?? this.statusFilter,
-      sortBy: sortBy ?? this.sortBy,
-      sortOrder: sortOrder ?? this.sortOrder,
     );
   }
 }
@@ -56,8 +48,8 @@ class AdminActivitiesNotifier extends StateNotifier<AdminActivitiesState> {
         'limit': '100',
         if (state.searchQuery.isNotEmpty) 'q': state.searchQuery,
         if (state.statusFilter != 'all') 'status': state.statusFilter,
-        'sortBy': state.sortBy,
-        'sortOrder': state.sortOrder,
+        'sortBy': 'createdAt',
+        'sortOrder': 'desc',
       };
 
       final response = await _apiClient.get('/activities/admin/all', queryParams);
@@ -67,7 +59,7 @@ class AdminActivitiesNotifier extends StateNotifier<AdminActivitiesState> {
         state = state.copyWith(activities: activities, isLoading: false);
       } else {
         state = state.copyWith(
-          error: response['message'] ?? 'Không thể tải danh sách hoạt động',
+          error: response['error']?['message'] ?? response['message'] ?? 'Không thể tải danh sách hoạt động',
           isLoading: false,
         );
       }
@@ -90,12 +82,8 @@ class AdminActivitiesNotifier extends StateNotifier<AdminActivitiesState> {
     loadActivities();
   }
 
-  void sortActivities(String sortBy, String sortOrder) {
-    state = state.copyWith(sortBy: sortBy, sortOrder: sortOrder);
-    loadActivities();
-  }
 
-  Future<void> changeActivityStatus(int activityId, int newStatus) async {
+  Future<bool> changeActivityStatus(int activityId, int newStatus) async {
     try {
       final response = await _apiClient.put(
         '/activities/$activityId',
@@ -111,20 +99,28 @@ class AdminActivitiesNotifier extends StateNotifier<AdminActivitiesState> {
           return a;
         }).toList();
         state = state.copyWith(activities: updatedActivities);
+        return true;
+      } else if (response['error'] != null) {
+        state = state.copyWith(
+          error: response['error']['message'] ?? 'Không thể thay đổi trạng thái hoạt động',
+        );
+        return false;
       } else {
         state = state.copyWith(
           error: response['message'] ?? 'Không thể thay đổi trạng thái hoạt động',
         );
+        return false;
       }
     } catch (e) {
       debugPrint('[ADMIN_ACTIVITIES] Error changing activity status: $e');
       state = state.copyWith(
         error: 'Lỗi: ${e.toString()}',
       );
+      return false;
     }
   }
 
-  Future<void> deleteActivity(int activityId) async {
+  Future<bool> deleteActivity(int activityId) async {
     try {
       final response = await _apiClient.delete('/activities/$activityId');
 
@@ -132,20 +128,28 @@ class AdminActivitiesNotifier extends StateNotifier<AdminActivitiesState> {
         // Remove activity from local state
         final updatedActivities = state.activities.where((a) => a['id'] != activityId).toList();
         state = state.copyWith(activities: updatedActivities);
+        return true;
+      } else if (response['error'] != null) {
+        state = state.copyWith(
+          error: response['error']['message'] ?? 'Không thể xóa hoạt động',
+        );
+        return false;
       } else {
         state = state.copyWith(
           error: response['message'] ?? 'Không thể xóa hoạt động',
         );
+        return false;
       }
     } catch (e) {
       debugPrint('[ADMIN_ACTIVITIES] Error deleting activity: $e');
       state = state.copyWith(
         error: 'Lỗi: ${e.toString()}',
       );
+      return false;
     }
   }
 
-  Future<void> bulkDeleteActivities(List<int> activityIds) async {
+  Future<bool> bulkDeleteActivities(List<int> activityIds) async {
     try {
       final response = await _apiClient.post(
         '/activities/bulk-delete',
@@ -156,16 +160,61 @@ class AdminActivitiesNotifier extends StateNotifier<AdminActivitiesState> {
         // Remove activities from local state
         final updatedActivities = state.activities.where((a) => !activityIds.contains(a['id'])).toList();
         state = state.copyWith(activities: updatedActivities);
+        return true;
+      } else if (response['error'] != null) {
+        state = state.copyWith(
+          error: response['error']['message'] ?? 'Không thể xóa các hoạt động',
+        );
+        return false;
       } else {
         state = state.copyWith(
           error: response['message'] ?? 'Không thể xóa các hoạt động',
         );
+        return false;
       }
     } catch (e) {
       debugPrint('[ADMIN_ACTIVITIES] Error bulk deleting activities: $e');
       state = state.copyWith(
         error: 'Lỗi: ${e.toString()}',
       );
+      return false;
+    }
+  }
+
+  Future<bool> updateActivity(int activityId, Map<String, dynamic> activityData) async {
+    try {
+      final response = await _apiClient.put(
+        '/activities/$activityId',
+        activityData,
+      );
+
+      if (response['data'] != null) {
+        // Update activity in local state
+        final updatedActivities = state.activities.map((a) {
+          if (a['id'] == activityId) {
+            return {...a, ...activityData};
+          }
+          return a;
+        }).toList();
+        state = state.copyWith(activities: updatedActivities);
+        return true;
+      } else if (response['error'] != null) {
+        state = state.copyWith(
+          error: response['error']['message'] ?? 'Không thể cập nhật hoạt động',
+        );
+        return false;
+      } else {
+        state = state.copyWith(
+          error: response['message'] ?? 'Không thể cập nhật hoạt động',
+        );
+        return false;
+      }
+    } catch (e) {
+      debugPrint('[ADMIN_ACTIVITIES] Error updating activity: $e');
+      state = state.copyWith(
+        error: 'Lỗi: ${e.toString()}',
+      );
+      return false;
     }
   }
 
@@ -176,6 +225,10 @@ class AdminActivitiesNotifier extends StateNotifier<AdminActivitiesState> {
       if (response['data'] != null) {
         // TODO: Handle file download
         debugPrint('[ADMIN_ACTIVITIES] Export data received: ${response['data']}');
+      } else if (response['error'] != null) {
+        state = state.copyWith(
+          error: response['error']['message'] ?? 'Không thể xuất dữ liệu hoạt động',
+        );
       } else {
         state = state.copyWith(
           error: response['message'] ?? 'Không thể xuất dữ liệu hoạt động',
@@ -186,6 +239,19 @@ class AdminActivitiesNotifier extends StateNotifier<AdminActivitiesState> {
       state = state.copyWith(
         error: 'Lỗi: ${e.toString()}',
       );
+    }
+  }
+
+  Future<Map<String, dynamic>> getActivityRegistrations(int activityId) async {
+    try {
+      final response = await _apiClient.get(
+        '/activities/$activityId/registrations',
+        {'page': '1', 'limit': '100'},
+      );
+      return response;
+    } catch (e) {
+      debugPrint('[ADMIN_ACTIVITIES] Error getting activity registrations: $e');
+      return {'error': 'Lỗi: ${e.toString()}'};
     }
   }
 }

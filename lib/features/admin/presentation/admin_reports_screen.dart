@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
+import '../../../theme.dart';
 import '../data/reports_provider.dart';
 import 'widgets/chart_widgets.dart';
 
@@ -51,13 +52,18 @@ class _AdminReportsScreenState extends ConsumerState<AdminReportsScreen>
     return Scaffold(
       appBar: AppBar(
         title: const Text('Báo cáo & Thống kê'),
-        backgroundColor: Theme.of(context).colorScheme.primary,
+        backgroundColor: kBlue,
         foregroundColor: Colors.white,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           onPressed: () => context.go('/admin/dashboard'),
         ),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.analytics),
+            onPressed: () => _showPeriodicReportsDialog(context),
+            tooltip: 'Báo cáo định kỳ',
+          ),
           IconButton(
             icon: const Icon(Icons.filter_list),
             onPressed: () => _showFilterDialog(context),
@@ -595,5 +601,317 @@ class _AdminReportsScreenState extends ConsumerState<AdminReportsScreen>
       case 'registrations': return 'Báo cáo đăng ký';
       default: return 'Báo cáo';
     }
+  }
+
+  void _showPeriodicReportsDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Báo cáo định kỳ'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text('Chọn loại báo cáo định kỳ:'),
+            const SizedBox(height: 16),
+            ListTile(
+              leading: const Icon(Icons.calendar_view_week, color: Colors.blue),
+              title: const Text('Báo cáo tuần'),
+              subtitle: const Text('Thống kê hoạt động theo tuần'),
+              onTap: () {
+                Navigator.pop(context);
+                _showPeriodicReportDetails('weekly');
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.calendar_view_month, color: Colors.green),
+              title: const Text('Báo cáo tháng'),
+              subtitle: const Text('Thống kê hoạt động theo tháng'),
+              onTap: () {
+                Navigator.pop(context);
+                _showPeriodicReportDetails('monthly');
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.calendar_today, color: Colors.orange),
+              title: const Text('Báo cáo năm'),
+              subtitle: const Text('Thống kê hoạt động theo năm'),
+              onTap: () {
+                Navigator.pop(context);
+                _showPeriodicReportDetails('yearly');
+              },
+            ),
+            const Divider(),
+            ListTile(
+              leading: const Icon(Icons.settings, color: Colors.purple),
+              title: const Text('Cài đặt tự động'),
+              subtitle: const Text('Cấu hình tạo báo cáo tự động'),
+              onTap: () {
+                Navigator.pop(context);
+                _showAutoReportSettings(context);
+              },
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Đóng'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showPeriodicReportDetails(String period) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Báo cáo ${_getPeriodTitle(period)}'),
+        content: SizedBox(
+          width: double.maxFinite,
+          height: 400,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Thống kê ${_getPeriodTitle(period).toLowerCase()}',
+                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 16),
+              Expanded(
+                child: _buildPeriodicReportContent(period),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Đóng'),
+          ),
+          ElevatedButton(
+            onPressed: () => _exportPeriodicReport(period),
+            child: const Text('Xuất báo cáo'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPeriodicReportContent(String period) {
+    // Mock data - trong thực tế sẽ lấy từ provider
+    final mockData = _getMockPeriodicData(period);
+    
+    return SingleChildScrollView(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Summary Cards
+          Row(
+            children: [
+              Expanded(
+                child: _buildSummaryCard(
+                  'Tổng hoạt động',
+                  '${mockData['total_activities']}',
+                  Icons.event,
+                  Colors.blue,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: _buildSummaryCard(
+                  'Đăng ký',
+                  '${mockData['total_registrations']}',
+                  Icons.app_registration,
+                  Colors.green,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Expanded(
+                child: _buildSummaryCard(
+                  'Điểm danh',
+                  '${mockData['total_attendances']}',
+                  Icons.check_circle,
+                  Colors.orange,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: _buildSummaryCard(
+                  'Điểm rèn luyện',
+                  '${mockData['total_points']}',
+                  Icons.star,
+                  Colors.purple,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          
+          // Trends Chart
+          Text(
+            'Xu hướng',
+            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 8),
+          Container(
+            height: 200,
+            decoration: BoxDecoration(
+              border: Border.all(color: Colors.grey[300]!),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Center(
+              child: Text(
+                'Biểu đồ xu hướng ${_getPeriodTitle(period).toLowerCase()}',
+                style: TextStyle(color: Colors.grey[600]),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSummaryCard(String title, String value, IconData icon, Color color) {
+    return Card(
+      elevation: 2,
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          children: [
+            Icon(icon, color: color, size: 24),
+            const SizedBox(height: 8),
+            Text(
+              value,
+              style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+            ),
+            Text(
+              title,
+              style: const TextStyle(fontSize: 12, color: Colors.grey),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showAutoReportSettings(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Cài đặt báo cáo tự động'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            SwitchListTile(
+              title: const Text('Tự động tạo báo cáo tuần'),
+              subtitle: const Text('Tạo báo cáo vào cuối mỗi tuần'),
+              value: true,
+              onChanged: (value) {
+                // TODO: Implement auto report settings
+              },
+            ),
+            SwitchListTile(
+              title: const Text('Tự động tạo báo cáo tháng'),
+              subtitle: const Text('Tạo báo cáo vào cuối mỗi tháng'),
+              value: true,
+              onChanged: (value) {
+                // TODO: Implement auto report settings
+              },
+            ),
+            SwitchListTile(
+              title: const Text('Tự động tạo báo cáo năm'),
+              subtitle: const Text('Tạo báo cáo vào cuối mỗi năm'),
+              value: false,
+              onChanged: (value) {
+                // TODO: Implement auto report settings
+              },
+            ),
+            const Divider(),
+            ListTile(
+              leading: const Icon(Icons.email),
+              title: const Text('Gửi báo cáo qua email'),
+              subtitle: const Text('Tự động gửi báo cáo cho quản trị viên'),
+              trailing: Switch(
+                value: true,
+                onChanged: (value) {
+                  // TODO: Implement email settings
+                },
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Hủy'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(context);
+              // TODO: Save settings
+            },
+            child: const Text('Lưu'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _getPeriodTitle(String period) {
+    switch (period) {
+      case 'weekly': return 'Tuần';
+      case 'monthly': return 'Tháng';
+      case 'yearly': return 'Năm';
+      default: return 'Kỳ';
+    }
+  }
+
+  Map<String, dynamic> _getMockPeriodicData(String period) {
+    switch (period) {
+      case 'weekly':
+        return {
+          'total_activities': 15,
+          'total_registrations': 120,
+          'total_attendances': 95,
+          'total_points': 285,
+        };
+      case 'monthly':
+        return {
+          'total_activities': 65,
+          'total_registrations': 520,
+          'total_attendances': 410,
+          'total_points': 1230,
+        };
+      case 'yearly':
+        return {
+          'total_activities': 780,
+          'total_registrations': 6240,
+          'total_attendances': 4920,
+          'total_points': 14760,
+        };
+      default:
+        return {
+          'total_activities': 0,
+          'total_registrations': 0,
+          'total_attendances': 0,
+          'total_points': 0,
+        };
+    }
+  }
+
+  void _exportPeriodicReport(String period) {
+    // TODO: Implement export functionality
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Đang xuất báo cáo ${_getPeriodTitle(period).toLowerCase()}...'),
+        backgroundColor: Colors.green,
+      ),
+    );
   }
 }

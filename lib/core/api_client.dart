@@ -4,15 +4,21 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'dart:developer' as dev;
 
 String baseUrl() {
-  if (Platform.isAndroid) return 'http://10.0.2.2:3000'; // Android Emulator
-  return 'http://127.0.0.1:3000'; 
+  // Sử dụng IP thật cho cả điện thoại thật và emulator
+    // if (Platform.isAndroid) return 'http://10.0.2.2:4000'; // Android Emulator
+  return 'http://192.168.100.243:4000'; 
 }
 
 final storage = const FlutterSecureStorage();
 
 Dio buildDio() {
-  final dio = Dio(BaseOptions(baseUrl: baseUrl(), connectTimeout: const Duration(seconds: 10)));
-  dev.log('[API] Base URL: ${dio.options.baseUrl}'); // Log base URL
+  final dio = Dio(BaseOptions(
+    baseUrl: baseUrl(), 
+    connectTimeout: const Duration(seconds: 30),
+    receiveTimeout: const Duration(seconds: 30),
+    sendTimeout: const Duration(seconds: 30),
+  ));
+  dev.log('[API] Base URL: ${dio.options.baseUrl}');
   dio.interceptors.add(InterceptorsWrapper(
     onRequest: (options, handler) async {
       final token = await storage.read(key: 'access_token');

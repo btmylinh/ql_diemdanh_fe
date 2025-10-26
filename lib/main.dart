@@ -10,11 +10,21 @@ import 'features/manager/presentation/activity_form.dart';
 import 'features/manager/presentation/activities_list_screen.dart';
 import 'features/manager/presentation/activity_students_screen.dart';
 import 'features/manager/presentation/attendance_session_screen.dart';
+import 'features/manager/presentation/manager_profile.dart';
+import 'features/manager/presentation/manager_periodic_reports_screen.dart';
 import 'features/admin/presentation/admin_dashboard.dart';
 import 'features/admin/presentation/admin_users_screen.dart';
 import 'features/admin/presentation/admin_activities_screen.dart';
 import 'features/admin/presentation/admin_backup_restore.dart';
-import 'features/student/presentation/student_dashboard.dart' as student_presentation;
+import 'features/student/presentation/student_activities_screen.dart';
+import 'features/student/presentation/my_activities.dart';
+import 'features/student/presentation/student_profile.dart';
+import 'features/student/presentation/qr_scan.dart';
+import 'features/student/presentation/activity_detail.dart';
+import 'features/student/presentation/reports_screen.dart';
+import 'features/student/presentation/periodic_reports_screen.dart';
+import 'features/shared/presentation/change_password_screen.dart';
+import 'features/admin/presentation/admin_profile_screen.dart';
 
 void main() => runApp(const ProviderScope(child: MyApp()));
 
@@ -40,15 +50,27 @@ class MyApp extends ConsumerWidget {
       GoRoute(path: '/manager/activity/:id/students', builder: (_, __) => const ActivityStudentsScreen()),
       GoRoute(path: '/manager/activity/:id/attendance', builder: (_, __) => const AttendanceSessionScreen()),
       GoRoute(path: '/manager/activities', builder: (_, __) => const ActivitiesListScreen()),
+      GoRoute(path: '/manager/profile', builder: (_, __) => const ManagerProfileScreen()),
+      GoRoute(path: '/manager/periodic-reports', builder: (_, __) => const ManagerPeriodicReportsScreen()),
       
       // Admin routes
       GoRoute(path: '/admin/dashboard', builder: (_, __) => const AdminDashboardScreen()),
       GoRoute(path: '/admin/users', builder: (_, __) => const AdminUsersScreen()),
       GoRoute(path: '/admin/activities', builder: (_, __) => const AdminActivitiesScreen()),
       GoRoute(path: '/admin/backup', builder: (_, __) => const AdminBackupRestoreScreen()),
+      GoRoute(path: '/admin/profile', builder: (_, __) => const AdminProfileScreen()),
       
       // Student routes
-      GoRoute(path: '/student/dashboard', builder: (_, __) => const student_presentation.StudentDashboard()),
+      GoRoute(path: '/student/activities', builder: (_, __) => const StudentActivitiesScreen()),
+      GoRoute(path: '/student/activity/:id', builder: (_, state) => ActivityDetailScreen(activityId: int.parse(state.pathParameters['id']!))),
+      GoRoute(path: '/student/qr-scan', builder: (_, __) => QrScanScreen()),
+      GoRoute(path: '/student/my', builder: (_, __) => const MyActivitiesScreen()),
+      GoRoute(path: '/student/reports', builder: (_, __) => const ReportsScreen()),
+      GoRoute(path: '/student/periodic-reports', builder: (_, __) => const PeriodicReportsScreen()),
+      GoRoute(path: '/student/profile', builder: (_, __) => const StudentProfileScreen()),
+      
+      // Shared routes
+      GoRoute(path: '/change-password', builder: (_, __) => const ChangePasswordScreen()),
     ]);
     
     return MaterialApp.router(
@@ -71,7 +93,7 @@ class _RoleBasedHome extends ConsumerWidget {
     // Redirect based on role
     if (user.isStudent) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (context.mounted) context.go('/student/dashboard');
+        if (context.mounted) context.go('/student/activities');
       });
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     } else if (user.isManager) {

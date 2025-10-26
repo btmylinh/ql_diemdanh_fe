@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import '../../../theme.dart';
 import '../data/activities_providers.dart';
+import '../../../theme.dart';
 
 class StudentActivitiesScreen extends ConsumerStatefulWidget {
   const StudentActivitiesScreen({super.key});
@@ -12,209 +12,499 @@ class StudentActivitiesScreen extends ConsumerStatefulWidget {
 }
 
 class _StudentActivitiesScreenState extends ConsumerState<StudentActivitiesScreen> {
-  final _search = TextEditingController();
-  DateTime? _selectedDate;
+  String _selectedFilter = 'Tất cả';
+  final TextEditingController _searchController = TextEditingController();
+  String _searchQuery = '';
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     final listAsync = ref.watch(activitiesListProvider);
+    
     return Scaffold(
+      backgroundColor: Colors.white,
       appBar: AppBar(
-        title: const Text('Hoạt động'),
-        actions: [
-          IconButton(
-            tooltip: 'Quét QR',
-            onPressed: () => context.push('/student/qr-scan'),
-            icon: const Icon(Icons.qr_code_scanner),
+        backgroundColor: Colors.white,
+        elevation: 0,
+        title: const Text(
+          'Hoạt động CNTT',
+          style: TextStyle(
+            fontSize: 24,
+            fontWeight: FontWeight.bold,
+            color: Colors.black,
           ),
-          IconButton(
-            tooltip: 'Của tôi',
-            onPressed: () => context.push('/student/my'),
-            icon: const Icon(Icons.history),
-          ),
-        ],
+        ),
+        centerTitle: true,
       ),
       body: Column(
         children: [
+          // Search bar
           Padding(
-            padding: const EdgeInsets.all(12),
-            child: Row(children: [
-              Expanded(
+            padding: const EdgeInsets.all(16),
                 child: TextField(
-                  controller: _search,
+              controller: _searchController,
                   decoration: InputDecoration(
-                    hintText: 'Tìm theo tên/mô tả...',
+                hintText: 'Tìm kiếm theo tên hoạt động...',
                     prefixIcon: const Icon(Icons.search),
-                    filled: true,
-                    fillColor: Colors.grey[100],
-                    border: const OutlineInputBorder(
-                      borderRadius: BorderRadius.all(Radius.circular(12)),
-                      borderSide: BorderSide.none,
-                    ),
-                  ),
-                  onSubmitted: (_) => _applyFilters(),
+                suffixIcon: _searchQuery.isNotEmpty
+                    ? IconButton(
+                        icon: const Icon(Icons.clear),
+                        onPressed: () {
+                          _searchController.clear();
+                          setState(() => _searchQuery = '');
+                        },
+                      )
+                    : null,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide(color: Colors.grey[300]!),
                 ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide(color: Colors.grey[300]!),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide(color: kGreen),
+                ),
+                filled: true,
+                fillColor: Colors.grey[50],
               ),
-              const SizedBox(width: 8),
-              OutlinedButton.icon(
-                onPressed: _pickDate,
-                icon: const Icon(Icons.event),
-                label: Text(_selectedDate == null
-                    ? 'Ngày'
-                    : _selectedDate!.toLocal().toString().split(' ').first),
-              ),
-              const SizedBox(width: 8),
-              FilledButton(
-                onPressed: _applyFilters,
-                child: const Text('Lọc'),
-              ),
-            ]),
+              onChanged: (value) {
+                setState(() => _searchQuery = value);
+              },
+            ),
           ),
+          
+          // Filter bar
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                children: [
+                  _FilterChip(
+                    label: 'Tất cả',
+                    isSelected: _selectedFilter == 'Tất cả',
+                    onSelected: () => setState(() => _selectedFilter = 'Tất cả'),
+                  ),
+                  const SizedBox(width: 8),
+                  _FilterChip(
+                    label: 'Đang diễn ra',
+                    isSelected: _selectedFilter == 'Đang diễn ra',
+                    onSelected: () => setState(() => _selectedFilter = 'Đang diễn ra'),
+              ),
+              const SizedBox(width: 8),
+                  _FilterChip(
+                    label: 'Chưa đăng ký',
+                    isSelected: _selectedFilter == 'Chưa đăng ký',
+                    onSelected: () => setState(() => _selectedFilter = 'Chưa đăng ký'),
+              ),
+              const SizedBox(width: 8),
+                  _FilterChip(
+                    label: 'Đã đăng ký',
+                    isSelected: _selectedFilter == 'Đã đăng ký',
+                    onSelected: () => setState(() => _selectedFilter = 'Đã đăng ký'),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          // Activities list
           Expanded(
             child: listAsync.when(
               data: (data) {
-                final now = DateTime.now();
                 final raw = List<Map<String, dynamic>>.from(data['activities'] ?? []);
-                // Ẩn sự kiện đã qua (dựa trên end_time; nếu không có thì dùng start_time)
-                final items = raw.where((a) {
-                  final start = DateTime.tryParse(a['start_time']?.toString() ?? '');
-                  final end = DateTime.tryParse(a['end_time']?.toString() ?? '');
-                  final effectiveEnd = end ?? start;
-                  if (effectiveEnd == null) return true; // nếu thiếu hết thời gian, không lọc
-                  return !now.isAfter(effectiveEnd);
+                
+                // Lọc theo search query
+                List<Map<String, dynamic>> filtered = raw;
+                if (_searchQuery.isNotEmpty) {
+                  filtered = raw.where((activity) {
+                    final name = activity['name']?.toString().toLowerCase() ?? '';
+                    return name.contains(_searchQuery.toLowerCase());
                 }).toList();
-                if (items.isEmpty) {
-                  return const Center(child: Text('Không có hoạt động'));
                 }
-                return ListView.separated(
-                  itemCount: items.length,
-                  separatorBuilder: (_, __) => const SizedBox(height: 8),
-                  padding: const EdgeInsets.all(12),
-                  itemBuilder: (_, i) => _ActivityItem(activity: items[i]),
+                
+                // Lọc theo filter
+                List<Map<String, dynamic>> result = [];
+                final now = DateTime.now();
+                
+                for (final activity in filtered) {
+                  final status = activity['status'] as int?;
+                  final registered = activity['registered_by_me'] == true;
+                  final startTime = DateTime.tryParse(activity['start_time']?.toString() ?? '');
+                  final endTime = DateTime.tryParse(activity['end_time']?.toString() ?? '');
+                  final registrationDeadline = DateTime.tryParse(activity['registration_deadline']?.toString() ?? '');
+                  
+                  // Loại bỏ hoạt động đã hủy (status = 4) hoặc đã hoàn thành (status = 3)
+                  if (status == 3 || status == 4) {
+                    continue;
+                  }
+                  
+                  // Loại bỏ hoạt động đã kết thúc (endTime đã qua)
+                  if (endTime != null && now.isAfter(endTime)) {
+                    continue;
+                  }
+                  
+                  bool isOngoing = false;
+                  bool isExpired = false;
+                  
+                  if (startTime != null && endTime != null) {
+                    isOngoing = now.isAfter(startTime) && now.isBefore(endTime);
+                  }
+                  
+                  if (registrationDeadline != null) {
+                    isExpired = now.isAfter(registrationDeadline);
+                  }
+                  
+                  bool shouldInclude = false;
+                  
+                  switch (_selectedFilter) {
+                    case 'Tất cả':
+                      shouldInclude = true;
+                      break;
+                    case 'Đang diễn ra':
+                      shouldInclude = isOngoing;
+                      break;
+                    case 'Chưa đăng ký':
+                      shouldInclude = !registered && !isExpired;
+                      break;
+                    case 'Đã đăng ký':
+                      shouldInclude = registered;
+                      break;
+                  }
+                  
+                  if (shouldInclude) {
+                    result.add(activity);
+                  }
+                }
+                
+                if (result.isEmpty) {
+                  return Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.search_off,
+                          size: 64,
+                          color: Colors.grey[400],
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          _searchQuery.isNotEmpty 
+                              ? 'Không tìm thấy hoạt động nào'
+                              : 'Không có hoạt động',
+                          style: TextStyle(
+                            fontSize: 16,
+                            color: Colors.grey[600],
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        if (_searchQuery.isNotEmpty) ...[
+                          const SizedBox(height: 8),
+                          Text(
+                            'Thử tìm kiếm với từ khóa khác',
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: Colors.grey[500],
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  );
+                }
+                
+                return ListView(
+                  padding: const EdgeInsets.all(16),
+                  children: [
+                    ...result.map((activity) => Padding(
+                      padding: const EdgeInsets.only(bottom: 12),
+                      child: _ActivityCard(activity: activity),
+                    )),
+                  ],
                 );
               },
-              error: (e, st) => Center(child: Text('Lỗi: $e')),
+              error: (e, st) => Center(
+                child: Text(
+                  'Lỗi: $e',
+                  style: const TextStyle(color: Colors.red),
+                ),
+              ),
               loading: () => const Center(child: CircularProgressIndicator()),
             ),
           ),
         ],
       ),
+      bottomNavigationBar: _BottomNavigationBar(),
     );
-  }
-
-  void _applyFilters() {
-    final dateIso = _selectedDate?.toIso8601String();
-    ref.read(activitiesQueryProvider.notifier)
-        .state = ActivitiesQuery(q: _search.text.trim(), dateIso: dateIso);
-  }
-
-  Future<void> _pickDate() async {
-    final now = DateTime.now();
-    final picked = await showDatePicker(
-      context: context,
-      firstDate: DateTime(now.year - 1),
-      lastDate: DateTime(now.year + 2),
-      initialDate: _selectedDate ?? now,
-    );
-    if (picked != null) setState(() => _selectedDate = picked);
   }
 }
 
-class _ActivityItem extends StatelessWidget {
-  const _ActivityItem({required this.activity});
+class _FilterChip extends StatelessWidget {
+  const _FilterChip({
+    required this.label,
+    required this.isSelected,
+    required this.onSelected,
+  });
+
+  final String label;
+  final bool isSelected;
+  final VoidCallback onSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onSelected,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        decoration: BoxDecoration(
+          color: isSelected ? kBlue : Colors.grey[200],
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            color: isSelected ? Colors.white : Colors.black87,
+            fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ActivityCard extends StatelessWidget {
+  const _ActivityCard({
+    required this.activity,
+  });
+
   final Map<String, dynamic> activity;
 
   @override
   Widget build(BuildContext context) {
-    final start = DateTime.tryParse(activity['start_time']?.toString() ?? '');
-    final end = DateTime.tryParse(activity['end_time']?.toString() ?? '');
-    final registeredByMe = activity['registered_by_me'] == true;
+    final name = activity['name'] ?? 'Hoạt động';
+    final startTime = DateTime.tryParse(activity['start_time']?.toString() ?? '');
+    final registrationDeadline = DateTime.tryParse(activity['registration_deadline']?.toString() ?? '');
+    final registered = activity['registered_by_me'] == true;
     final now = DateTime.now();
-    final isOngoing = (start != null && end != null) && now.isAfter(start) && now.isBefore(end);
-    final isUpcomingSoon = start != null && now.isBefore(start) && start.difference(now) <= const Duration(minutes: 30);
-    return Card(
-      elevation: 1,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: InkWell(
+    
+    // Xác định tags
+    List<_Tag> tags = [];
+    
+    // Tag đang diễn ra
+    if (startTime != null) {
+      final endTime = DateTime.tryParse(activity['end_time']?.toString() ?? '');
+      if (endTime != null && now.isAfter(startTime) && now.isBefore(endTime)) {
+        tags.add(_Tag(
+          label: 'Đang diễn ra',
+          color: Colors.green,
+          textColor: Colors.white,
+        ));
+      }
+    }
+    
+    // Tag đã đăng ký
+    if (registered) {
+      tags.add(_Tag(
+        label: 'Đã đăng ký',
+        color: Colors.blue,
+        textColor: Colors.white,
+      ));
+    }
+    
+    // Tag hết hạn đăng ký
+    if (registrationDeadline != null && now.isAfter(registrationDeadline)) {
+      tags.add(_Tag(
+        label: 'Hết hạn đăng ký',
+        color: Colors.red,
+        textColor: Colors.white,
+      ));
+    }
+
+    return GestureDetector(
+      onTap: () => context.push('/student/activity/${activity['id']}'),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white,
         borderRadius: BorderRadius.circular(12),
-        onTap: () => context.push('/student/activities/${activity['id']}', extra: activity['id']),
-        child: Padding(
-          padding: const EdgeInsets.all(12),
-          child: Row(
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.05),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: kGreen.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: const Icon(Icons.event, color: kGreen),
+            // Title
+            Text(
+              name,
+              style: const TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: Colors.black,
               ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+            ),
+            const SizedBox(height: 12),
+            
+            // Thông tin chi tiết
+            _InfoRow(
+              icon: Icons.access_time,
+              label: 'Hạn đăng ký',
+              value: registrationDeadline != null 
+                  ? _formatDateTime(registrationDeadline)
+                  : 'Không có',
+              iconColor: Colors.red,
+            ),
+            const SizedBox(height: 8),
+            
+            _InfoRow(
+              icon: Icons.schedule,
+              label: 'Thời gian bắt đầu',
+              value: startTime != null 
+                  ? _formatDateTime(startTime)
+                  : 'Không có',
+              iconColor: Colors.blue,
+            ),
+            
+            // Tags
+            if (tags.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              Wrap(
+                spacing: 8,
+                runSpacing: 4,
+                children: tags.map((tag) => Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                    color: tag.color,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    tag.label,
+                    style: TextStyle(
+                      color: tag.textColor,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                )).toList(),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+  
+  String _formatDateTime(DateTime dateTime) {
+    final local = dateTime.toLocal();
+    return '${local.day}/${local.month}/${local.year} ${local.hour.toString().padLeft(2, '0')}:${local.minute.toString().padLeft(2, '0')}';
+  }
+}
+
+class _Tag {
+  const _Tag({
+    required this.label,
+    required this.color,
+    required this.textColor,
+  });
+
+  final String label;
+  final Color color;
+  final Color textColor;
+}
+
+class _InfoRow extends StatelessWidget {
+  const _InfoRow({
+    required this.icon,
+    required this.label,
+    required this.value,
+    this.iconColor = Colors.grey,
+  });
+
+  final IconData icon;
+  final String label;
+  final String value;
+  final Color iconColor;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
                   children: [
-                    Text(activity['name'] ?? '',
-                        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-                    const SizedBox(height: 4),
-                    if (activity['location'] != null)
-                      Row(children: [
-                        const Icon(Icons.place, size: 14, color: Colors.grey),
-                        const SizedBox(width: 4),
-                        Flexible(child: Text(activity['location'], overflow: TextOverflow.ellipsis)),
-                      ]),
-                    const SizedBox(height: 4),
-                    if (start != null)
-                      Row(children: [
-                        const Icon(Icons.schedule, size: 14, color: Colors.grey),
-                        const SizedBox(width: 4),
-                        Text(_formatStart(start)),
+        Icon(icon, size: 16, color: iconColor),
                         const SizedBox(width: 8),
-                        if (isOngoing) _StatusChip(text: 'Đang diễn ra', color: Colors.green),
-                        if (!isOngoing && isUpcomingSoon) _StatusChip(text: 'Sắp diễn ra', color: Colors.blue),
-                      ]),
-                    const SizedBox(height: 4),
-                    // Training Points
-                    if (activity['training_points'] != null && activity['training_points'] > 0)
-                      Row(children: [
-                        const Icon(Icons.star, size: 14, color: Colors.amber),
-                        const SizedBox(width: 4),
-                        Text('${activity['training_points']} điểm rèn luyện'),
-                      ]),
-                    const SizedBox(height: 4),
-                    // Registration Deadline
-                    if (activity['registration_deadline'] != null)
-                      Row(children: [
-                        const Icon(Icons.access_time, size: 14, color: Colors.red),
-                        const SizedBox(width: 4),
-                        Text('Hạn đăng ký: ${_formatStart(DateTime.parse(activity['registration_deadline']))}'),
-                      ]),
-                    const SizedBox(height: 8),
-                    Row(children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                        decoration: BoxDecoration(
-                          color: registeredByMe ? Colors.amber.withOpacity(0.18) : Colors.grey[100],
-                          borderRadius: BorderRadius.circular(20),
-                          border: Border.all(
-                            color: registeredByMe ? Colors.amber.shade600 : Colors.grey.shade300,
-                          ),
-                        ),
+        Text(
+          '$label: ',
+          style: TextStyle(
+            fontSize: 14,
+            color: Colors.grey[600],
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+        Expanded(
                         child: Text(
-                          registeredByMe ? 'Đã đăng ký' : 'Chưa đăng ký',
-                          style: TextStyle(
-                            color: registeredByMe ? Colors.amber.shade800 : Colors.grey[700],
-                            fontWeight: registeredByMe ? FontWeight.w700 : FontWeight.w500,
+            value,
+            style: const TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+              color: Colors.black,
                           ),
                         ),
                       ),
-                      const Spacer(),
-                      const Icon(Icons.chevron_right),
-                    ])
-                  ],
-                ),
+      ],
+    );
+  }
+}
+
+class _BottomNavigationBar extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: const BoxDecoration(
+        color: kGreen,
+        borderRadius: BorderRadius.only(
+          topLeft: Radius.circular(20),
+          topRight: Radius.circular(20),
+        ),
+      ),
+      child: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
+            children: [
+              _NavItem(
+                icon: Icons.play_circle_fill,
+                label: 'Hoạt động',
+                isActive: true,
+                onTap: () {},
+              ),
+              _NavItem(
+                icon: Icons.qr_code_scanner,
+                label: 'QR danh',
+                isActive: false,
+                onTap: () => context.push('/student/qr-scan'),
+              ),
+              _NavItem(
+                icon: Icons.assessment_outlined,
+                label: 'Báo cáo',
+                isActive: false,
+                onTap: () => context.push('/student/reports'),
+              ),
+              _NavItem(
+                icon: Icons.person_outline,
+                label: 'Hồ sơ',
+                isActive: false,
+                onTap: () => context.push('/student/profile'),
               ),
             ],
           ),
@@ -222,31 +512,44 @@ class _ActivityItem extends StatelessWidget {
       ),
     );
   }
-
-  String _two(int n) => n.toString().padLeft(2, '0');
-  String _formatStart(DateTime dt) {
-    final d = dt.toLocal();
-    return '${_two(d.hour)}:${_two(d.minute)} ${_two(d.day)}/${_two(d.month)}/${d.year}';
-  }
 }
 
-class _StatusChip extends StatelessWidget {
-  const _StatusChip({required this.text, required this.color});
-  final String text;
-  final Color color;
+class _NavItem extends StatelessWidget {
+  const _NavItem({
+    required this.icon,
+    required this.label,
+    required this.isActive,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String label;
+  final bool isActive;
+  final VoidCallback onTap;
+
   @override
   Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.only(left: 4),
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-      decoration: BoxDecoration(
-        color: color.withOpacity(0.12),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color.withOpacity(0.5)),
+    return GestureDetector(
+      onTap: onTap,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            icon,
+            color: Colors.white,
+            size: isActive ? 28 : 24,
+          ),
+          const SizedBox(height: 4),
+          Text(
+            label,
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 12,
+              fontWeight: isActive ? FontWeight.w600 : FontWeight.normal,
+            ),
+          ),
+        ],
       ),
-      child: Text(text, style: TextStyle(color: color, fontWeight: FontWeight.w600, fontSize: 12)),
     );
   }
 }
-
-

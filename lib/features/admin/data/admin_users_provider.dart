@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter/foundation.dart';
+import 'dart:async';
 import '../../../core/api_client.dart';
 
 class AdminUsersState {
@@ -8,7 +9,6 @@ class AdminUsersState {
   final String? error;
   final String searchQuery;
   final String roleFilter;
-  final bool showInactive;
 
   const AdminUsersState({
     this.users = const [],
@@ -16,7 +16,6 @@ class AdminUsersState {
     this.error,
     this.searchQuery = '',
     this.roleFilter = 'all',
-    this.showInactive = false,
   });
 
   AdminUsersState copyWith({
@@ -25,7 +24,6 @@ class AdminUsersState {
     String? error,
     String? searchQuery,
     String? roleFilter,
-    bool? showInactive,
   }) {
     return AdminUsersState(
       users: users ?? this.users,
@@ -33,7 +31,6 @@ class AdminUsersState {
       error: error ?? this.error,
       searchQuery: searchQuery ?? this.searchQuery,
       roleFilter: roleFilter ?? this.roleFilter,
-      showInactive: showInactive ?? this.showInactive,
     );
   }
 }
@@ -52,7 +49,6 @@ class AdminUsersNotifier extends StateNotifier<AdminUsersState> {
         'limit': '100',
         if (state.searchQuery.isNotEmpty) 'search': state.searchQuery,
         if (state.roleFilter != 'all') 'role': state.roleFilter,
-        if (state.showInactive) 'include_inactive': 'true',
       };
 
       final response = await _apiClient.get('/users', queryParams);
@@ -85,37 +81,6 @@ class AdminUsersNotifier extends StateNotifier<AdminUsersState> {
     loadUsers();
   }
 
-  void toggleShowInactive(bool show) {
-    state = state.copyWith(showInactive: show);
-    loadUsers();
-  }
-
-  Future<void> toggleUserStatus(int userId) async {
-    try {
-      final user = state.users.firstWhere((u) => u['id'] == userId);
-      final isActive = user['status'] == 1;
-      
-      final response = await _apiClient.patch(
-        '/users/$userId/${isActive ? 'soft-delete' : 'restore'}',
-        {},
-      );
-
-      if (response['message'] != null) {
-        // Reload users to get updated data
-        await loadUsers();
-      } else {
-        state = state.copyWith(
-          error: response['message'] ?? 'Không thể thay đổi trạng thái người dùng',
-        );
-      }
-    } catch (e) {
-      debugPrint('[ADMIN_USERS] Error toggling user status: $e');
-      state = state.copyWith(
-        error: 'Lỗi: ${e.toString()}',
-      );
-    }
-  }
-
   Future<Map<String, dynamic>?> createUser(Map<String, dynamic> payload) async {
     try {
       final response = await _apiClient.post('/users', payload);
@@ -133,7 +98,7 @@ class AdminUsersNotifier extends StateNotifier<AdminUsersState> {
     }
   }
 
-  Future<Map<String, dynamic>?> updateUser(int userId, Map<String, dynamic> payload) async {
+  Future<Map<String, dynamic>?> updateUser(dynamic userId, Map<String, dynamic> payload) async {
     try {
       final response = await _apiClient.put('/users/$userId', payload);
       if (response['data'] != null) {
@@ -142,18 +107,20 @@ class AdminUsersNotifier extends StateNotifier<AdminUsersState> {
                 ? {...u, ...(response['data'] as Map<String, dynamic>)}
                 : u)
             .toList();
+        
         state = state.copyWith(users: updatedUsers);
         return response['data'];
       }
       state = state.copyWith(error: response['message'] ?? 'Không thể cập nhật người dùng');
       return null;
     } catch (e) {
+      debugPrint('[ADMIN_USERS] Error updating user: $e');
       state = state.copyWith(error: 'Lỗi: ${e.toString()}');
       return null;
     }
   }
 
-  Future<void> deleteUser(int userId) async {
+  Future<void> deleteUser(dynamic userId) async {
     try {
       final response = await _apiClient.delete('/users/$userId');
 
@@ -174,7 +141,7 @@ class AdminUsersNotifier extends StateNotifier<AdminUsersState> {
     }
   }
 
-  Future<void> updateUserRole(int userId, String newRole) async {
+  Future<bool> updateUserRole(dynamic userId, String newRole) async {
     try {
       final response = await _apiClient.put(
         '/users/$userId',
@@ -189,17 +156,114 @@ class AdminUsersNotifier extends StateNotifier<AdminUsersState> {
           }
           return u;
         }).toList();
+        
         state = state.copyWith(users: updatedUsers);
+        return true;
       } else {
         state = state.copyWith(
           error: response['message'] ?? 'Không thể cập nhật vai trò người dùng',
         );
+        return false;
       }
     } catch (e) {
       debugPrint('[ADMIN_USERS] Error updating user role: $e');
       state = state.copyWith(
         error: 'Lỗi: ${e.toString()}',
       );
+      return false;
+    }
+  }
+
+  Future<bool> resetUserPassword(dynamic userId, String newPassword) async {
+    try {
+      final response = await _apiClient.put(
+        '/users/$userId/reset-password',
+        {'password': newPassword},
+      );
+
+      if (response['message'] != null) {
+        return true;
+      } else {
+        state = state.copyWith(
+          error: response['message'] ?? 'Không thể reset mật khẩu',
+        );
+        return false;
+      }
+    } catch (e) {
+      debugPrint('[ADMIN_USERS] Error resetting user password: $e');
+      state = state.copyWith(
+        error: 'Lỗi: ${e.toString()}',
+      );
+      return false;
+    }
+  }
+
+  Future<void> toggleUserStatus(dynamic userId) async {
+    try {
+      // Get current user status
+      final currentUser = state.users.firstWhere((u) => u['id'] == userId);
+      final currentStatus = currentUser['status'] ?? 1;
+      
+      // Toggle between active (1) and inactive (0)
+      final newStatus = currentStatus == 1 ? 0 : 1;
+      
+      final response = await _apiClient.patch(
+        '/users/$userId/status',
+        {'status': newStatus},
+      );
+
+      if (response['data'] != null) {
+        // Update user in local state
+        final updatedUsers = state.users.map((u) {
+          if (u['id'] == userId) {
+            return {...u, 'status': newStatus};
+          }
+          return u;
+        }).toList();
+        state = state.copyWith(users: updatedUsers);
+      } else {
+        state = state.copyWith(
+          error: response['message'] ?? 'Không thể thay đổi trạng thái người dùng',
+        );
+      }
+    } catch (e) {
+      debugPrint('[ADMIN_USERS] Error toggling user status: $e');
+      state = state.copyWith(
+        error: 'Lỗi: ${e.toString()}',
+      );
+    }
+  }
+
+  Future<bool> changeUserStatus(dynamic userId, int status) async {
+    try {
+      final response = await _apiClient.patch(
+        '/users/$userId/status',
+        {'status': status},
+      );
+
+      if (response['data'] != null) {
+        // Update user in local state
+        final updatedUsers = state.users.map((u) {
+          if (u['id'] == userId) {
+            return {...u, 'status': status};
+          }
+          return u;
+        }).toList();
+        
+        state = state.copyWith(users: updatedUsers);
+        return true;
+      } else {
+        state = state.copyWith(
+          error: response['message'] ?? 'Không thể thay đổi trạng thái người dùng',
+        );
+        return false;
+      }
+    } catch (e) {
+      debugPrint('[ADMIN_USERS] Error changing user status: $e');
+      state = state.copyWith(
+        error: 'Lỗi: ${e.toString()}',
+      );
+      return false;
     }
   }
 }

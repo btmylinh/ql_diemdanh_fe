@@ -8,7 +8,7 @@ class ActivitiesRepository {
 
   Future<Map<String, dynamic>> list({
     int page = 1,
-    int limit = 10,
+    int limit = 50,
     String? q,
     String? dateIso,
   }) async {
@@ -19,7 +19,7 @@ class ActivitiesRepository {
       if (dateIso != null && dateIso.isNotEmpty) 'date': dateIso,
       'sortBy': 'startTime',
       'sortOrder': 'asc',
-      'status': 2,
+      // Không filter theo status để lấy tất cả hoạt động
     });
     return Map<String, dynamic>.from(res.data);
   }

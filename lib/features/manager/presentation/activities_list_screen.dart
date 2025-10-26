@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../theme.dart';
 import '../data/activities_providers.dart';
+import '../../auth/auth_provider.dart';
 
 class ActivitiesListScreen extends ConsumerStatefulWidget {
   const ActivitiesListScreen({super.key});
@@ -68,14 +69,14 @@ class _ActivitiesListScreenState extends ConsumerState<ActivitiesListScreen> {
         elevation: 0,
         actions: [
           IconButton(
-            icon: const Icon(Icons.add),
-            onPressed: () => context.push('/manager/activity/new'),
-            tooltip: 'Tạo hoạt động mới',
+            icon: const Icon(Icons.analytics),
+            onPressed: () => context.push('/manager/periodic-reports'),
+            tooltip: 'Báo cáo định kỳ',
           ),
           IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: _loadActivities,
-            tooltip: 'Làm mới',
+            icon: const Icon(Icons.person),
+            onPressed: () => context.push('/manager/profile'),
+            tooltip: 'Hồ sơ cá nhân',
           ),
         ],
       ),
@@ -146,8 +147,9 @@ class _ActivitiesListScreenState extends ConsumerState<ActivitiesListScreen> {
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () => context.push('/manager/activity/new'),
-        backgroundColor: kBlue,
+        backgroundColor: kGreen,
         child: const Icon(Icons.add, color: Colors.white),
+        tooltip: 'Tạo hoạt động mới',
       ),
     );
   }
@@ -518,6 +520,30 @@ class _ActivitiesListScreenState extends ConsumerState<ActivitiesListScreen> {
     } catch (e) {
       return 'N/A';
     }
+  }
+
+  void _showLogoutDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Đăng xuất'),
+        content: const Text('Bạn có chắc muốn đăng xuất?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('Hủy'),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.of(ctx).pop();
+              ref.read(authControllerProvider.notifier).logout();
+              context.go('/login');
+            },
+            child: const Text('Đăng xuất', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
   }
 
 }

@@ -5,20 +5,14 @@ import '../../../theme.dart';
 import '../../auth/user_provider.dart';
 import '../../auth/auth_provider.dart';
 
-class StudentProfileScreen extends ConsumerWidget {
-  const StudentProfileScreen({super.key});
+class AdminProfileScreen extends ConsumerWidget {
+  const AdminProfileScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final user = ref.watch(userProvider);
     final u = user.user ?? const {};
     String _fmt(dynamic v) => (v == null || v.toString().isEmpty) ? 'Chưa cập nhật' : v.toString();
-    String _fmtDate(dynamic v) {
-      final s = v?.toString();
-      if (s == null || s.isEmpty) return 'Chưa cập nhật';
-      // Hiển thị gọn: yyyy-MM-dd HH:mm
-      return s.replaceFirst('T', ' ').split('.').first;
-    }
     
     return Scaffold(
       backgroundColor: Colors.white,
@@ -34,78 +28,81 @@ class StudentProfileScreen extends ConsumerWidget {
           ),
         ),
         centerTitle: true,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Colors.black),
+          onPressed: () => context.pop(),
+        ),
       ),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          Card(
-            elevation: 2,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-            child: Padding(
-              padding: const EdgeInsets.all(20),
-              child: Column(
-                children: [
-                  CircleAvatar(
-                    radius: 50,
-                    backgroundColor: kGreen.withOpacity(0.1),
-                    child: Icon(
-                      Icons.person,
-                      size: 50,
-                      color: kGreen,
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    user.name ?? 'Chưa có tên',
-                    style: const TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    user.email ?? 'Chưa có email',
-                    style: TextStyle(
-                      fontSize: 16,
-                      color: Colors.grey[600],
-                    ),
-                  ),
-                  if (user.role != null) ...[
-                    const SizedBox(height: 8),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                      decoration: BoxDecoration(
-                        color: kGreen.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(color: kGreen),
-                      ),
-                      child: Text(
-                        'Sinh viên',
-                        style: TextStyle(
-                          color: kGreen,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ),
-                  ],
-                ],
+          // Profile Header
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [kBlue, kBlue.withOpacity(0.8)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
               ),
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: [
+                BoxShadow(
+                  color: kBlue.withOpacity(0.3),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: Column(
+              children: [
+                CircleAvatar(
+                  radius: 50,
+                  backgroundColor: Colors.white.withOpacity(0.2),
+                  child: Icon(
+                    Icons.admin_panel_settings,
+                    size: 50,
+                    color: Colors.white,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  user.name ?? 'Admin',
+                  style: const TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Quản trị hệ thống',
+                  style: TextStyle(
+                    fontSize: 16,
+                    color: Colors.white.withOpacity(0.9),
+                  ),
+                ),
+              ],
             ),
           ),
+          
           const SizedBox(height: 24),
 
+          // Thông tin cá nhân
           _InfoCard(
             title: 'Thông tin cá nhân',
             children: [
               _InfoRow(label: 'Họ tên', value: user.name ?? 'Chưa cập nhật'),
               _InfoRow(label: 'Email', value: user.email ?? 'Chưa cập nhật'),
-              _InfoRow(label: 'MSSV', value: _fmt(u['mssv'])),
-              _InfoRow(label: 'Lớp', value: _fmt(u['class'])),
+              _InfoRow(label: 'Vai trò', value: 'Quản trị viên'),
               _InfoRow(label: 'Số điện thoại', value: _fmt(u['phone'])),
             ],
           ),
+          
           const SizedBox(height: 16),
 
+          // Thao tác
           _InfoCard(
             title: 'Thao tác',
             children: [
@@ -123,7 +120,6 @@ class StudentProfileScreen extends ConsumerWidget {
           ),
         ],
       ),
-      bottomNavigationBar: _BottomNavigationBar(),
     );
   }
 
@@ -226,6 +222,62 @@ class _InfoRow extends StatelessWidget {
   }
 }
 
+class _StatRow extends StatelessWidget {
+  const _StatRow({
+    required this.icon,
+    required this.label,
+    required this.value,
+    required this.color,
+  });
+  
+  final IconData icon;
+  final String label;
+  final String value;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: color.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(icon, color: color, size: 20),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  style: TextStyle(
+                    color: Colors.grey[600],
+                    fontSize: 14,
+                  ),
+                ),
+                Text(
+                  value,
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: color,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _ActionRow extends StatelessWidget {
   const _ActionRow({
     required this.icon,
@@ -256,95 +308,6 @@ class _ActionRow extends StatelessWidget {
             Icon(Icons.arrow_forward_ios, size: 16, color: Colors.grey[400]),
           ],
         ),
-      ),
-    );
-  }
-}
-
-class _BottomNavigationBar extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      decoration: const BoxDecoration(
-        color: kGreen,
-        borderRadius: BorderRadius.only(
-          topLeft: Radius.circular(20),
-          topRight: Radius.circular(20),
-        ),
-      ),
-      child: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 8),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: [
-              _NavItem(
-                icon: Icons.play_circle_fill,
-                label: 'Hoạt động',
-                isActive: false,
-                onTap: () => context.go('/student/activities'),
-              ),
-              _NavItem(
-                icon: Icons.qr_code_scanner,
-                label: 'QR danh',
-                isActive: false,
-                onTap: () => context.push('/student/qr-scan'),
-              ),
-              _NavItem(
-                icon: Icons.assessment_outlined,
-                label: 'Báo cáo',
-                isActive: false,
-                onTap: () => context.push('/student/reports'),
-              ),
-              _NavItem(
-                icon: Icons.person_outline,
-                label: 'Hồ sơ',
-                isActive: true,
-                onTap: () {},
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _NavItem extends StatelessWidget {
-  const _NavItem({
-    required this.icon,
-    required this.label,
-    required this.isActive,
-    required this.onTap,
-  });
-
-  final IconData icon;
-  final String label;
-  final bool isActive;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(
-            icon,
-            color: Colors.white,
-            size: isActive ? 28 : 24,
-          ),
-          const SizedBox(height: 4),
-          Text(
-            label,
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 12,
-              fontWeight: isActive ? FontWeight.w600 : FontWeight.normal,
-            ),
-          ),
-        ],
       ),
     );
   }

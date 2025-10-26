@@ -4,7 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../../../theme.dart';
 import '../../auth/user_provider.dart';
 import '../../auth/auth_provider.dart';
-import '../../manager/data/activities_providers.dart';
+import '../data/reports_provider.dart';
 // removed session state widgets import
 
 class AdminDashboardScreen extends ConsumerWidget {
@@ -23,6 +23,11 @@ class AdminDashboardScreen extends ConsumerWidget {
         title: Text('Xin chào, ${user.name ?? 'Admin'}'),
         elevation: 0,
         actions: [
+          IconButton(
+            icon: const Icon(Icons.person),
+            onPressed: () => context.push('/admin/profile'),
+            tooltip: 'Hồ sơ cá nhân',
+          ),
           IconButton(
             icon: const Icon(Icons.logout),
             onPressed: () {
@@ -202,6 +207,16 @@ class AdminDashboardScreen extends ConsumerWidget {
     );
   }
 
+  String _calculateAttendanceRate(Map<String, dynamic> stats) {
+    final totalRegistrations = stats['totalRegistrations'] ?? 0;
+    final totalAttendances = stats['totalAttendances'] ?? 0;
+    
+    if (totalRegistrations == 0) return '0';
+    
+    final rate = (totalAttendances / totalRegistrations * 100).round();
+    return rate.toString();
+  }
+
   Widget _buildStatsCards(Map<String, dynamic> stats) {
     return Column(
       children: [
@@ -249,12 +264,26 @@ class AdminDashboardScreen extends ConsumerWidget {
           ],
         ),
         const SizedBox(height: 16),
-        _StatCard(
-          title: 'Tổng sinh viên đăng ký',
-          value: '${stats['totalRegistrations'] ?? 0}',
-          icon: Icons.people,
-          color: Colors.purple,
-          isFullWidth: true,
+        Row(
+          children: [
+            Expanded(
+              child: _StatCard(
+                title: 'Tổng sinh viên đăng ký',
+                value: '${stats['totalRegistrations'] ?? 0}',
+                icon: Icons.people,
+                color: Colors.purple,
+              ),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: _StatCard(
+                title: 'Tỉ lệ điểm danh',
+                value: '${_calculateAttendanceRate(stats)}%',
+                icon: Icons.check_circle_outline,
+                color: Colors.teal,
+              ),
+            ),
+          ],
         ),
       ],
     );

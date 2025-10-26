@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../theme.dart';
 import '../data/backup_provider.dart';
 import '../data/backup_history_service.dart';
 
@@ -93,7 +94,7 @@ class AdminBackupRestoreScreen extends ConsumerWidget {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Sao lưu & Khôi phục'),
-        backgroundColor: Theme.of(context).colorScheme.primary,
+        backgroundColor: kBlue,
         foregroundColor: Colors.white,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
