@@ -8,19 +8,19 @@ import '../../../core/api_client.dart';
 class BackupService {
   final ApiClient _apiClient = ApiClient();
 
-  /// Tạo bản sao lưu trên server (gọi backend /backup)
+  /// Tạo bản sao lưu trên server (gọi backend /backup/create)
   Future<BackupResult> createBackup({String? name}) async {
     try {
-      final resp = await _apiClient.post('/backup', {
+      final resp = await _apiClient.post('/backup/create', {
         if (name != null) 'name': name,
       });
 
-      final metadata = (resp['metadata'] as Map?)?.cast<String, dynamic>();
+      final metadata = (resp['data']?['metadata'] as Map?)?.cast<String, dynamic>();
 
       return BackupResult(
         success: true,
-        message: 'Đã tạo sao lưu trên server',
-        filePath: resp['filePath'] as String?,
+        message: resp['message'] ?? 'Đã tạo sao lưu trên server',
+        filePath: resp['data']?['filePath'] as String?,
         metadata: metadata,
       );
     } catch (e) {
@@ -54,11 +54,11 @@ class BackupService {
 
       // Gửi toàn bộ JSON lên backend để xử lý khôi phục atomically
       final resp = await _apiClient.post('/backup/restore', backupData);
-      final restored = resp['result']?['restored'];
+      final restored = resp['data']?['restored'];
 
       return BackupResult(
         success: true,
-        message: 'Khôi phục thành công trên server',
+        message: resp['message'] ?? 'Khôi phục thành công trên server',
         metadata: (restored is Map ? restored.cast<String, dynamic>() : null),
       );
 
@@ -70,80 +70,20 @@ class BackupService {
     }
   }
 
-  /// Xuất báo cáo thống kê
-  Future<BackupResult> exportReport(String reportType) async {
-    try {
-      final storagePermission = await Permission.storage.request();
-      if (!storagePermission.isGranted) {
-        return BackupResult(
-          success: false,
-          message: 'Cần cấp quyền truy cập storage để xuất báo cáo',
-        );
-      }
-
-      Map<String, dynamic> reportData = {};
-      String fileName = '';
-
-      switch (reportType) {
-        case 'activities':
-          reportData = await _apiClient.get('/activities');
-          fileName = 'activities_report_${DateTime.now().millisecondsSinceEpoch}.json';
-          break;
-        case 'users':
-          reportData = await _apiClient.get('/users');
-          fileName = 'users_report_${DateTime.now().millisecondsSinceEpoch}.json';
-          break;
-        case 'attendances':
-          reportData = await _apiClient.get('/attendances');
-          fileName = 'attendances_report_${DateTime.now().millisecondsSinceEpoch}.json';
-          break;
-        default:
-          return BackupResult(
-            success: false,
-            message: 'Loại báo cáo không hợp lệ',
-          );
-      }
-
-      // Tạo báo cáo với metadata
-      final report = {
-        'type': reportType,
-        'generatedAt': DateTime.now().toIso8601String(),
-        'data': reportData,
-        'summary': _generateReportSummary(reportData, reportType),
-      };
-
-      // Lưu và xuất file
-      final directory = await getApplicationDocumentsDirectory();
-      final file = File('${directory.path}/$fileName');
-      await file.writeAsString(jsonEncode(report));
-
-      return BackupResult(
-        success: true,
-        message: 'Xuất báo cáo thành công! File đã được lưu tại: ${file.path}',
-        filePath: file.path,
-      );
-
-    } catch (e) {
-      return BackupResult(
-        success: false,
-        message: 'Lỗi khi xuất báo cáo: ${e.toString()}',
-      );
-    }
-  }
 
   /// Danh sách backups trên server
   Future<List<dynamic>> listServerBackups() async {
-    final resp = await _apiClient.get('/backup');
-    return (resp['backups'] as List?) ?? const [];
+    final resp = await _apiClient.get('/backup/list');
+    return (resp['data'] as List?) ?? const [];
   }
 
   /// Tải backup lưu trên server về máy
-  Future<BackupResult> downloadServerBackup(int id) async {
+  Future<BackupResult> downloadServerBackup(String id) async {
     try {
       final directory = await getApplicationDocumentsDirectory();
       final filePath = '${directory.path}/server_backup_$id.json';
       // Download backup JSON from server
-      final resp = await _apiClient.get('/backup/$id/download');
+      final resp = await _apiClient.get('/backup/$id');
       final file = File(filePath);
       await file.writeAsString(jsonEncode(resp));
       return BackupResult(success: true, message: 'Đã tải backup', filePath: file.path);
@@ -153,42 +93,23 @@ class BackupService {
   }
 
   /// Khôi phục từ backup id lưu trên server
-  Future<BackupResult> restoreFromServerBackupId(int id) async {
+  Future<BackupResult> restoreFromServerBackupId(String id) async {
     try {
       final resp = await _apiClient.post('/backup/$id/restore', {});
-      return BackupResult(success: true, message: 'Khôi phục thành công', metadata: resp['result']);
+      return BackupResult(success: true, message: resp['message'] ?? 'Khôi phục thành công', metadata: resp['data']);
     } catch (e) {
       return BackupResult(success: false, message: 'Lỗi khôi phục: ${e.toString()}');
     }
   }
 
-
-  /// Generate summary for reports
-  Map<String, dynamic> _generateReportSummary(Map<String, dynamic> data, String type) {
-    final items = data['data'] as List<dynamic>? ?? [];
-    
-    switch (type) {
-      case 'activities':
-        return {
-          'totalActivities': items.length,
-          'activeActivities': items.where((a) => a['status'] == 'active').length,
-          'completedActivities': items.where((a) => a['status'] == 'completed').length,
-        };
-      case 'users':
-        return {
-          'totalUsers': items.length,
-          'adminUsers': items.where((u) => u['role'] == 'admin').length,
-          'managerUsers': items.where((u) => u['role'] == 'manager').length,
-          'studentUsers': items.where((u) => u['role'] == 'student').length,
-        };
-      case 'attendances':
-        return {
-          'totalAttendances': items.length,
-          'presentCount': items.where((a) => a['status'] == 'present').length,
-          'absentCount': items.where((a) => a['status'] == 'absent').length,
-        };
-      default:
-        return {'total': items.length};
+  /// Xóa bản sao lưu từ server
+  Future<bool> deleteBackup(String backupId) async {
+    try {
+      await _apiClient.delete('/backup/$backupId');
+      return true;
+    } catch (e) {
+      print('Lỗi khi xóa backup: $e');
+      return false;
     }
   }
 }

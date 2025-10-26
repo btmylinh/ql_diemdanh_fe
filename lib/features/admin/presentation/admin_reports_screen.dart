@@ -22,7 +22,7 @@ class _AdminReportsScreenState extends ConsumerState<AdminReportsScreen>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 4, vsync: this);
+    _tabController = TabController(length: 3, vsync: this);
   }
 
   @override
@@ -68,16 +68,14 @@ class _AdminReportsScreenState extends ConsumerState<AdminReportsScreen>
             icon: const Icon(Icons.filter_list),
             onPressed: () => _showFilterDialog(context),
           ),
-          IconButton(
-            icon: const Icon(Icons.download),
-            onPressed: () => _showExportDialog(context),
-          ),
         ],
         bottom: TabBar(
           controller: _tabController,
+          labelColor: Colors.white,
+          unselectedLabelColor: Colors.white70,
+          indicatorColor: Colors.white,
           tabs: const [
             Tab(icon: Icon(Icons.dashboard), text: 'Tổng quan'),
-            Tab(icon: Icon(Icons.timeline), text: 'Hoạt động'),
             Tab(icon: Icon(Icons.people), text: 'Người dùng'),
             Tab(icon: Icon(Icons.check_circle), text: 'Điểm danh'),
           ],
@@ -89,7 +87,6 @@ class _AdminReportsScreenState extends ConsumerState<AdminReportsScreen>
             controller: _tabController,
             children: [
               _buildOverviewTab(dashboardStatsAsync),
-              _buildActivitiesTab(),
               _buildUsersTab(),
               _buildAttendancesTab(),
             ],
@@ -279,56 +276,6 @@ class _AdminReportsScreenState extends ConsumerState<AdminReportsScreen>
     );
   }
 
-  Widget _buildActivitiesTab() {
-    return Consumer(
-      builder: (context, ref, child) {
-        
-        return SingleChildScrollView(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Thống kê hoạt động theo thời gian',
-                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 16),
-              Card(
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        'Xu hướng đăng ký theo thời gian',
-                        style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                      ),
-                      const SizedBox(height: 16),
-                      ref.watch(registrationsTrendProvider((start: _startDate, end: _endDate))).when(
-                        data: (data) => RegistrationsTrendChart(data: data),
-                        loading: () => const Center(child: CircularProgressIndicator()),
-                        error: (error, stack) => Center(
-                          child: Text('Lỗi: $error'),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              const SizedBox(height: 16),
-              ElevatedButton.icon(
-                onPressed: () => _generateReport('activities'),
-                icon: const Icon(Icons.description),
-                label: const Text('Tạo báo cáo chi tiết'),
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
 
   Widget _buildUsersTab() {
     return SingleChildScrollView(
@@ -370,12 +317,6 @@ class _AdminReportsScreenState extends ConsumerState<AdminReportsScreen>
               );
             },
           ),
-          const SizedBox(height: 16),
-          ElevatedButton.icon(
-            onPressed: () => _generateReport('users'),
-            icon: const Icon(Icons.description),
-            label: const Text('Tạo báo cáo chi tiết'),
-          ),
         ],
       ),
     );
@@ -396,8 +337,8 @@ class _AdminReportsScreenState extends ConsumerState<AdminReportsScreen>
           const SizedBox(height: 16),
           Consumer(
             builder: (context, ref, child) {
-              final activitiesByStatusAsync = ref.watch(activitiesByStatusProvider);
-              return activitiesByStatusAsync.when(
+              final registrationsTrendAsync = ref.watch(registrationsTrendProvider((start: _startDate, end: _endDate)));
+              return registrationsTrendAsync.when(
                 data: (data) => Card(
                   child: Padding(
                     padding: const EdgeInsets.all(16),
@@ -405,11 +346,11 @@ class _AdminReportsScreenState extends ConsumerState<AdminReportsScreen>
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         const Text(
-                          'Hoạt động theo trạng thái',
+                          'Xu hướng điểm danh theo thời gian',
                           style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                         ),
                         const SizedBox(height: 16),
-                        ActivitiesStatusPieChart(data: data),
+                        RegistrationsTrendChart(data: data),
                       ],
                     ),
                   ),
@@ -422,11 +363,6 @@ class _AdminReportsScreenState extends ConsumerState<AdminReportsScreen>
             },
           ),
           const SizedBox(height: 16),
-          ElevatedButton.icon(
-            onPressed: () => _generateReport('attendances'),
-            icon: const Icon(Icons.description),
-            label: const Text('Tạo báo cáo chi tiết'),
-          ),
         ],
       ),
     );
@@ -509,68 +445,6 @@ class _AdminReportsScreenState extends ConsumerState<AdminReportsScreen>
     );
   }
 
-  void _showExportDialog(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Xuất báo cáo'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Text('Chọn loại báo cáo cần xuất:'),
-            const SizedBox(height: 16),
-            ...['activities', 'users', 'attendances', 'registrations'].map((type) =>
-              ListTile(
-                leading: Icon(_getReportIcon(type)),
-                title: Text(_getReportTitle(type)),
-                onTap: () {
-                  Navigator.pop(context);
-                  _exportReport(type);
-                },
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Hủy'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _generateReport(String reportType) {
-    ref.read(reportsStateProvider.notifier).generateReport(
-      reportType: reportType,
-      startDate: _startDate,
-      endDate: _endDate,
-    );
-  }
-
-  void _exportReport(String reportType) async {
-    // First generate the report
-    await ref.read(reportsStateProvider.notifier).generateReport(
-      reportType: reportType,
-      startDate: _startDate,
-      endDate: _endDate,
-    );
-
-    // Then export to CSV
-    final reportsState = ref.read(reportsStateProvider);
-    if (reportsState.reportData != null) {
-      final data = reportsState.reportData!['data'] as List<dynamic>? ?? [];
-      final csvData = data.cast<Map<String, dynamic>>();
-      
-      await ref.read(reportsStateProvider.notifier).exportToCSV(
-        reportType: reportType,
-        data: csvData,
-        startDate: _startDate,
-        endDate: _endDate,
-      );
-    }
-  }
 
   String _formatDateRange() {
     if (_startDate != null && _endDate != null) {
@@ -699,9 +573,37 @@ class _AdminReportsScreenState extends ConsumerState<AdminReportsScreen>
   }
 
   Widget _buildPeriodicReportContent(String period) {
-    // Mock data - trong thực tế sẽ lấy từ provider
-    final mockData = _getMockPeriodicData(period);
-    
+    return Consumer(
+      builder: (context, ref, child) {
+        // Gọi API dựa trên period
+        AsyncValue<Map<String, dynamic>> statsAsync;
+        
+        switch (period) {
+          case 'weekly':
+            statsAsync = ref.watch(dashboardStatsProvider);
+            break;
+          case 'monthly':
+            statsAsync = ref.watch(dashboardStatsProvider);
+            break;
+          case 'yearly':
+            statsAsync = ref.watch(dashboardStatsProvider);
+            break;
+          default:
+            statsAsync = ref.watch(dashboardStatsProvider);
+        }
+        
+        return statsAsync.when(
+          data: (stats) => _buildPeriodicStats(stats, period),
+          loading: () => const Center(child: CircularProgressIndicator()),
+          error: (error, stack) => Center(
+            child: Text('Lỗi: $error'),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildPeriodicStats(Map<String, dynamic> stats, String period) {
     return SingleChildScrollView(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -712,7 +614,7 @@ class _AdminReportsScreenState extends ConsumerState<AdminReportsScreen>
               Expanded(
                 child: _buildSummaryCard(
                   'Tổng hoạt động',
-                  '${mockData['total_activities']}',
+                  '${stats['totalActivities'] ?? 0}',
                   Icons.event,
                   Colors.blue,
                 ),
@@ -721,7 +623,7 @@ class _AdminReportsScreenState extends ConsumerState<AdminReportsScreen>
               Expanded(
                 child: _buildSummaryCard(
                   'Đăng ký',
-                  '${mockData['total_registrations']}',
+                  '${stats['totalRegistrations'] ?? 0}',
                   Icons.app_registration,
                   Colors.green,
                 ),
@@ -734,7 +636,7 @@ class _AdminReportsScreenState extends ConsumerState<AdminReportsScreen>
               Expanded(
                 child: _buildSummaryCard(
                   'Điểm danh',
-                  '${mockData['total_attendances']}',
+                  '${stats['totalAttendances'] ?? 0}',
                   Icons.check_circle,
                   Colors.orange,
                 ),
@@ -742,9 +644,9 @@ class _AdminReportsScreenState extends ConsumerState<AdminReportsScreen>
               const SizedBox(width: 8),
               Expanded(
                 child: _buildSummaryCard(
-                  'Điểm rèn luyện',
-                  '${mockData['total_points']}',
-                  Icons.star,
+                  'Người dùng',
+                  '${stats['totalUsers'] ?? 0}',
+                  Icons.people,
                   Colors.purple,
                 ),
               ),
@@ -754,7 +656,7 @@ class _AdminReportsScreenState extends ConsumerState<AdminReportsScreen>
           
           // Trends Chart
           Text(
-            'Xu hướng',
+            'Xu hướng ${_getPeriodTitle(period).toLowerCase()}',
             style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 8),
@@ -872,38 +774,6 @@ class _AdminReportsScreenState extends ConsumerState<AdminReportsScreen>
     }
   }
 
-  Map<String, dynamic> _getMockPeriodicData(String period) {
-    switch (period) {
-      case 'weekly':
-        return {
-          'total_activities': 15,
-          'total_registrations': 120,
-          'total_attendances': 95,
-          'total_points': 285,
-        };
-      case 'monthly':
-        return {
-          'total_activities': 65,
-          'total_registrations': 520,
-          'total_attendances': 410,
-          'total_points': 1230,
-        };
-      case 'yearly':
-        return {
-          'total_activities': 780,
-          'total_registrations': 6240,
-          'total_attendances': 4920,
-          'total_points': 14760,
-        };
-      default:
-        return {
-          'total_activities': 0,
-          'total_registrations': 0,
-          'total_attendances': 0,
-          'total_points': 0,
-        };
-    }
-  }
 
   void _exportPeriodicReport(String period) {
     // TODO: Implement export functionality

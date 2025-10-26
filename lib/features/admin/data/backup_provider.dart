@@ -112,34 +112,6 @@ class BackupStateNotifier extends StateNotifier<BackupState> {
     }
   }
 
-  Future<void> exportReport(String reportType) async {
-    state = state.copyWith(isLoading: true, progress: 0.0);
-    
-    try {
-      // Simulate progress updates
-      for (int i = 0; i <= 100; i += 15) {
-        await Future.delayed(const Duration(milliseconds: 150));
-        state = state.copyWith(progress: i / 100.0);
-      }
-
-      final result = await _backupService.exportReport(reportType);
-      
-      state = state.copyWith(
-        isLoading: false,
-        isSuccess: result.success,
-        message: result.message,
-        filePath: result.filePath,
-        progress: 1.0,
-      );
-    } catch (e) {
-      state = state.copyWith(
-        isLoading: false,
-        isSuccess: false,
-        message: 'Lỗi không mong muốn: ${e.toString()}',
-        progress: 0.0,
-      );
-    }
-  }
 
   void clearState() {
     state = const BackupState();

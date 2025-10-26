@@ -16,6 +16,8 @@ import 'features/admin/presentation/admin_dashboard.dart';
 import 'features/admin/presentation/admin_users_screen.dart';
 import 'features/admin/presentation/admin_activities_screen.dart';
 import 'features/admin/presentation/admin_backup_restore.dart';
+import 'features/admin/presentation/admin_restore_screen.dart';
+import 'features/admin/presentation/admin_reports_screen.dart';
 import 'features/student/presentation/student_activities_screen.dart';
 import 'features/student/presentation/my_activities.dart';
 import 'features/student/presentation/student_profile.dart';
@@ -57,7 +59,9 @@ class MyApp extends ConsumerWidget {
       GoRoute(path: '/admin/dashboard', builder: (_, __) => const AdminDashboardScreen()),
       GoRoute(path: '/admin/users', builder: (_, __) => const AdminUsersScreen()),
       GoRoute(path: '/admin/activities', builder: (_, __) => const AdminActivitiesScreen()),
+      GoRoute(path: '/admin/reports', builder: (_, __) => const AdminReportsScreen()),
       GoRoute(path: '/admin/backup', builder: (_, __) => const AdminBackupRestoreScreen()),
+      GoRoute(path: '/admin/backup/restore', builder: (_, __) => const AdminRestoreScreen()),
       GoRoute(path: '/admin/profile', builder: (_, __) => const AdminProfileScreen()),
       
       // Student routes

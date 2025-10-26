@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:characters/characters.dart';
 import 'dart:async';
+
 import '../../../theme.dart';
 import '../data/admin_users_provider.dart';
 
@@ -53,10 +55,14 @@ extension UserRoleX on UserRole {
   }
 }
 
-enum UserStatus { inactive(0), active(1), locked(2), unknown(-1);
+enum UserStatus {
+  inactive(0),
+  active(1),
+  locked(2),
+  unknown(-1);
 
-  const UserStatus(this.code);
   final int code;
+  const UserStatus(this.code);
 
   static UserStatus fromInt(dynamic raw) {
     final v = raw is int ? raw : int.tryParse(raw?.toString() ?? '') ?? -1;
@@ -122,6 +128,7 @@ class AdminUsersScreen extends ConsumerStatefulWidget {
 class _AdminUsersScreenState extends ConsumerState<AdminUsersScreen> {
   final TextEditingController _searchController = TextEditingController();
   String _selectedRole = 'all';
+  String _selectedStatus = 'all';
   Timer? _searchDebounce;
 
   @override
@@ -154,14 +161,48 @@ class _AdminUsersScreenState extends ConsumerState<AdminUsersScreen> {
         ),
         actions: [
           IconButton(
+            icon: const Icon(Icons.filter_list),
+            tooltip: 'Lọc người dùng',
+            onPressed: () => _showFilterDialog(context, ref),
+          ),
+          IconButton(
             icon: const Icon(Icons.add),
+            tooltip: 'Thêm người dùng',
             onPressed: _showAddUserDialog,
           ),
         ],
       ),
       body: Column(
         children: [
-          _buildSearchFilterBar(),
+          // Search bar
+          Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: TextField(
+              controller: _searchController,
+              decoration: InputDecoration(
+                hintText: 'Nhập tên, email hoặc mã số sinh viên...',
+                prefixIcon: const Icon(Icons.search),
+                suffixIcon: _searchController.text.isNotEmpty
+                    ? IconButton(
+                        icon: const Icon(Icons.clear),
+                        onPressed: () {
+                          _searchController.clear();
+                          ref.read(adminUsersProvider.notifier).searchUsers('');
+                        },
+                      )
+                    : null,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+              onChanged: (value) {
+                _searchDebounce?.cancel();
+                _searchDebounce = Timer(const Duration(milliseconds: 500), () {
+                  ref.read(adminUsersProvider.notifier).searchUsers(value);
+                });
+              },
+            ),
+          ),
           Expanded(
             child: usersState.isLoading
                 ? const Center(child: CircularProgressIndicator())
@@ -172,7 +213,8 @@ class _AdminUsersScreenState extends ConsumerState<AdminUsersScreen> {
                         : ListView.builder(
                             itemCount: usersState.users.length,
                             itemBuilder: (context, index) {
-                              final user = usersState.users[index] as Map<String, dynamic>;
+                              final user =
+                                  usersState.users[index] as Map<String, dynamic>;
                               return _buildUserCard(user);
                             },
                           ),
@@ -183,7 +225,7 @@ class _AdminUsersScreenState extends ConsumerState<AdminUsersScreen> {
   }
 
   /// -----------------------
-  /// Search & Filter Bar
+  /// Search & Filter Bar (optional UI not used in build)
   /// -----------------------
   Widget _buildSearchFilterBar() {
     return Container(
@@ -220,7 +262,7 @@ class _AdminUsersScreenState extends ConsumerState<AdminUsersScreen> {
             ],
           ),
           const SizedBox(height: 16),
-          
+
           // Search Input
           StatefulBuilder(
             builder: (context, setState) {
@@ -249,9 +291,11 @@ class _AdminUsersScreenState extends ConsumerState<AdminUsersScreen> {
                   ),
                   focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(8),
-                    borderSide: BorderSide(color: Colors.blue[400]!, width: 2),
+                    borderSide:
+                        BorderSide(color: Colors.blue[400]!, width: 2),
                   ),
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 16, vertical: 12),
                   filled: true,
                   fillColor: Colors.grey[50],
                 ),
@@ -265,9 +309,9 @@ class _AdminUsersScreenState extends ConsumerState<AdminUsersScreen> {
               );
             },
           ),
-          
+
           const SizedBox(height: 16),
-          
+
           // Role Filter
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -298,7 +342,8 @@ class _AdminUsersScreenState extends ConsumerState<AdminUsersScreen> {
                         value: 'all',
                         child: Row(
                           children: [
-                            Icon(Icons.people, size: 18, color: Colors.grey),
+                            Icon(Icons.people,
+                                size: 18, color: Colors.grey),
                             SizedBox(width: 8),
                             Text('Tất cả vai trò'),
                           ],
@@ -308,7 +353,8 @@ class _AdminUsersScreenState extends ConsumerState<AdminUsersScreen> {
                         value: 'admin',
                         child: Row(
                           children: [
-                            Icon(Icons.admin_panel_settings, size: 18, color: Colors.red),
+                            Icon(Icons.admin_panel_settings,
+                                size: 18, color: Colors.red),
                             SizedBox(width: 8),
                             Text('Admin'),
                           ],
@@ -318,7 +364,8 @@ class _AdminUsersScreenState extends ConsumerState<AdminUsersScreen> {
                         value: 'manager',
                         child: Row(
                           children: [
-                            Icon(Icons.manage_accounts, size: 18, color: Colors.blue),
+                            Icon(Icons.manage_accounts,
+                                size: 18, color: Colors.blue),
                             SizedBox(width: 8),
                             Text('Manager'),
                           ],
@@ -328,7 +375,8 @@ class _AdminUsersScreenState extends ConsumerState<AdminUsersScreen> {
                         value: 'student',
                         child: Row(
                           children: [
-                            Icon(Icons.school, size: 18, color: Colors.green),
+                            Icon(Icons.school,
+                                size: 18, color: Colors.green),
                             SizedBox(width: 8),
                             Text('Student'),
                           ],
@@ -338,22 +386,24 @@ class _AdminUsersScreenState extends ConsumerState<AdminUsersScreen> {
                     onChanged: (value) {
                       if (value == null) return;
                       setState(() => _selectedRole = value);
-                      ref.read(adminUsersProvider.notifier).filterByRole(value);
+                      ref
+                          .read(adminUsersProvider.notifier)
+                          .filterByRole(value);
                     },
                   ),
                 ),
               ),
             ],
           ),
-          
+
           const SizedBox(height: 16),
-          
-          // Action Buttons
+
+          // Clear filters
           Consumer(
             builder: (context, ref, child) {
-              final hasActiveFilters = _searchController.text.isNotEmpty || 
-                                    _selectedRole != 'all';
-              
+              final hasActiveFilters =
+                  _searchController.text.isNotEmpty || _selectedRole != 'all';
+
               return hasActiveFilters
                   ? ElevatedButton.icon(
                       onPressed: () {
@@ -361,8 +411,12 @@ class _AdminUsersScreenState extends ConsumerState<AdminUsersScreen> {
                         setState(() {
                           _selectedRole = 'all';
                         });
-                        ref.read(adminUsersProvider.notifier).searchUsers('');
-                        ref.read(adminUsersProvider.notifier).filterByRole('all');
+                        ref
+                            .read(adminUsersProvider.notifier)
+                            .searchUsers('');
+                        ref
+                            .read(adminUsersProvider.notifier)
+                            .filterByRole('all');
                       },
                       icon: const Icon(Icons.clear_all, size: 18),
                       label: const Text('Xóa tất cả bộ lọc'),
@@ -370,7 +424,8 @@ class _AdminUsersScreenState extends ConsumerState<AdminUsersScreen> {
                         backgroundColor: Colors.grey[200],
                         foregroundColor: Colors.grey[700],
                         elevation: 0,
-                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        padding:
+                            const EdgeInsets.symmetric(vertical: 12),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(8),
                         ),
@@ -394,10 +449,13 @@ class _AdminUsersScreenState extends ConsumerState<AdminUsersScreen> {
         children: [
           Icon(Icons.error, size: 64, color: Colors.red[300]),
           const SizedBox(height: 16),
-          Text('Lỗi: $message', style: const TextStyle(fontSize: 16), textAlign: TextAlign.center),
+          Text('Lỗi: $message',
+              style: const TextStyle(fontSize: 16),
+              textAlign: TextAlign.center),
           const SizedBox(height: 16),
           ElevatedButton(
-            onPressed: () => ref.read(adminUsersProvider.notifier).loadUsers(),
+            onPressed: () =>
+                ref.read(adminUsersProvider.notifier).loadUsers(),
             child: const Text('Thử lại'),
           ),
         ],
@@ -412,7 +470,8 @@ class _AdminUsersScreenState extends ConsumerState<AdminUsersScreen> {
         children: [
           Icon(Icons.people_outline, size: 64, color: Colors.grey),
           SizedBox(height: 16),
-          Text('Không có người dùng nào', style: TextStyle(fontSize: 16, color: Colors.grey)),
+          Text('Không có người dùng nào',
+              style: TextStyle(fontSize: 16, color: Colors.grey)),
         ],
       ),
     );
@@ -437,7 +496,8 @@ class _AdminUsersScreenState extends ConsumerState<AdminUsersScreen> {
           backgroundColor: role.color,
           child: Text(
             displayName.characters.first.toUpperCase(),
-            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+            style: const TextStyle(
+                color: Colors.white, fontWeight: FontWeight.bold),
           ),
         ),
         title: Row(
@@ -451,7 +511,8 @@ class _AdminUsersScreenState extends ConsumerState<AdminUsersScreen> {
                     style: TextStyle(
                       fontWeight: FontWeight.bold,
                       fontSize: 16,
-                      color: status == UserStatus.active ? null : Colors.grey,
+                      color:
+                          status == UserStatus.active ? null : Colors.grey,
                     ),
                   ),
                   if (mssv.isNotEmpty)
@@ -467,7 +528,8 @@ class _AdminUsersScreenState extends ConsumerState<AdminUsersScreen> {
               ),
             ),
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
               decoration: BoxDecoration(
                 color: role.color.withOpacity(0.1),
                 borderRadius: BorderRadius.circular(12),
@@ -488,7 +550,9 @@ class _AdminUsersScreenState extends ConsumerState<AdminUsersScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             if (className.isNotEmpty)
-              Text('Lớp: $className', style: TextStyle(fontSize: 13, color: Colors.grey[600])),
+              Text('Lớp: $className',
+                  style:
+                      TextStyle(fontSize: 13, color: Colors.grey[600])),
             const SizedBox(height: 4),
             Row(
               children: [
@@ -496,13 +560,18 @@ class _AdminUsersScreenState extends ConsumerState<AdminUsersScreen> {
                 const SizedBox(width: 4),
                 Text(
                   status.label,
-                  style: TextStyle(color: status.color, fontSize: 12, fontWeight: FontWeight.w500),
+                  style: TextStyle(
+                    color: status.color,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                  ),
                 ),
               ],
             ),
           ],
         ),
-        trailing: const Icon(Icons.arrow_forward_ios, size: 16, color: Colors.grey),
+        trailing:
+            const Icon(Icons.arrow_forward_ios, size: 16, color: Colors.grey),
       ),
     );
   }
@@ -529,7 +598,8 @@ class _AdminUsersScreenState extends ConsumerState<AdminUsersScreen> {
               backgroundColor: role.color,
               child: Text(
                 (name.isEmpty ? 'K' : name.characters.first).toUpperCase(),
-                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                style: const TextStyle(
+                    color: Colors.white, fontWeight: FontWeight.bold),
               ),
             ),
             const SizedBox(width: 12),
@@ -538,9 +608,13 @@ class _AdminUsersScreenState extends ConsumerState<AdminUsersScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(name.isEmpty ? 'Không có tên' : name,
-                      style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                      style: const TextStyle(
+                          fontSize: 18, fontWeight: FontWeight.bold)),
                   Text(role.label,
-                      style: TextStyle(color: role.color, fontSize: 14, fontWeight: FontWeight.w500)),
+                      style: TextStyle(
+                          color: role.color,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500)),
                 ],
               ),
             ),
@@ -555,12 +629,15 @@ class _AdminUsersScreenState extends ConsumerState<AdminUsersScreen> {
               if (className.isNotEmpty) _buildInfoRow('Lớp', className),
               if (phone.isNotEmpty) _buildInfoRow('SĐT', phone),
               const SizedBox(height: 8),
-              _buildInfoRow('Trạng thái', status.label, valueColor: status.color),
+              _buildInfoRow('Trạng thái', status.label,
+                  valueColor: status.color),
             ],
           ),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Đóng')),
+          TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Đóng')),
           Row(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -577,7 +654,8 @@ class _AdminUsersScreenState extends ConsumerState<AdminUsersScreen> {
                   Navigator.pop(context);
                   _showResetPasswordDialog(user);
                 },
-                icon: const Icon(Icons.lock_reset, color: Colors.orange),
+                icon:
+                    const Icon(Icons.lock_reset, color: Colors.orange),
                 tooltip: 'Reset mật khẩu',
               ),
               IconButton(
@@ -595,10 +673,15 @@ class _AdminUsersScreenState extends ConsumerState<AdminUsersScreen> {
                         .read(adminUsersProvider.notifier)
                         .updateUserRole(user['id'], selected);
                     if (!mounted) return;
-                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                      content: Text(ok ? 'Đổi quyền thành công' : 'Không thể đổi quyền'),
-                      backgroundColor: ok ? Colors.green : Colors.red,
-                    ));
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(ok
+                            ? 'Đổi quyền thành công'
+                            : 'Không thể đổi quyền'),
+                        backgroundColor:
+                            ok ? Colors.green : Colors.red,
+                      ),
+                    );
                   }
                 },
                 icon: const Icon(Icons.swap_horiz, color: Colors.purple),
@@ -609,17 +692,25 @@ class _AdminUsersScreenState extends ConsumerState<AdminUsersScreen> {
                   Navigator.pop(context);
                   final selected = await showDialog<int>(
                     context: context,
-                    builder: (_) => ChangeStatusDialog(currentStatus: status.code, user: user),
+                    builder: (_) => ChangeStatusDialog(
+                      currentStatus: status.code,
+                      user: user,
+                    ),
                   );
                   if (selected != null && selected != status.code) {
                     final ok = await ref
                         .read(adminUsersProvider.notifier)
                         .changeUserStatus(user['id'], selected);
                     if (!mounted) return;
-                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                      content: Text(ok ? 'Thay đổi trạng thái thành công' : 'Không thể thay đổi trạng thái'),
-                      backgroundColor: ok ? Colors.green : Colors.red,
-                    ));
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(ok
+                            ? 'Thay đổi trạng thái thành công'
+                            : 'Không thể thay đổi trạng thái'),
+                        backgroundColor:
+                            ok ? Colors.green : Colors.red,
+                      ),
+                    );
                   }
                 },
                 icon: Icon(status.icon, color: status.color),
@@ -630,7 +721,7 @@ class _AdminUsersScreenState extends ConsumerState<AdminUsersScreen> {
                   Navigator.pop(context);
                   _showDeleteUserDialog(user);
                 },
-                icon: const Icon(Icons.delete, color: Colors.red),                
+                icon: const Icon(Icons.delete, color: Colors.red),
                 tooltip: 'Xóa vĩnh viễn',
               ),
             ],
@@ -646,8 +737,16 @@ class _AdminUsersScreenState extends ConsumerState<AdminUsersScreen> {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          SizedBox(width: 80, child: Text('$label:', style: const TextStyle(fontWeight: FontWeight.w500))),
-          Expanded(child: Text(value, style: TextStyle(color: valueColor))),
+          SizedBox(
+            width: 80,
+            child: Text(
+              '$label:',
+              style: const TextStyle(fontWeight: FontWeight.w500),
+            ),
+          ),
+          Expanded(
+            child: Text(value, style: TextStyle(color: valueColor)),
+          ),
         ],
       ),
     );
@@ -675,17 +774,26 @@ class _AdminUsersScreenState extends ConsumerState<AdminUsersScreen> {
               children: [
                 TextFormField(
                   controller: nameCtrl,
-                  decoration: const InputDecoration(labelText: 'Họ và tên *'),
-                  validator: (v) => (v == null || v.trim().isEmpty) ? 'Vui lòng nhập tên' : null,
+                  decoration:
+                      const InputDecoration(labelText: 'Họ và tên *'),
+                  validator: (v) =>
+                      (v == null || v.trim().isEmpty)
+                          ? 'Vui lòng nhập tên'
+                          : null,
                 ),
                 TextFormField(
                   controller: emailCtrl,
-                  decoration: const InputDecoration(labelText: 'Email *'),
+                  decoration:
+                      const InputDecoration(labelText: 'Email *'),
                   keyboardType: TextInputType.emailAddress,
                   validator: (v) {
-                    if (v == null || v.trim().isEmpty) return 'Vui lòng nhập email';
+                    if (v == null || v.trim().isEmpty) {
+                      return 'Vui lòng nhập email';
+                    }
                     final emailRegex = RegExp(r'^\S+@\S+\.\S+$');
-                    if (!emailRegex.hasMatch(v.trim())) return 'Email không hợp lệ';
+                    if (!emailRegex.hasMatch(v.trim())) {
+                      return 'Email không hợp lệ';
+                    }
                     return null;
                   },
                 ),
@@ -693,12 +801,15 @@ class _AdminUsersScreenState extends ConsumerState<AdminUsersScreen> {
                   controller: passCtrl,
                   decoration: const InputDecoration(
                     labelText: 'Mật khẩu *',
-                    hintText: 'Để trống sẽ dùng mật khẩu mặc định: 123456',
+                    hintText:
+                        'Để trống sẽ dùng mật khẩu mặc định: 123456',
                   ),
                   obscureText: true,
                   validator: (v) {
                     if (v == null || v.isEmpty) return null;
-                    if (v.length < 6) return 'Mật khẩu ít nhất 6 ký tự';
+                    if (v.length < 6) {
+                      return 'Mật khẩu ít nhất 6 ký tự';
+                    }
                     return null;
                   },
                 ),
@@ -706,18 +817,29 @@ class _AdminUsersScreenState extends ConsumerState<AdminUsersScreen> {
                 DropdownButtonFormField<String>(
                   value: role,
                   items: const [
-                    DropdownMenuItem(value: 'admin', child: Text('Admin')),
-                    DropdownMenuItem(value: 'manager', child: Text('Manager')),
-                    DropdownMenuItem(value: 'student', child: Text('Student')),
+                    DropdownMenuItem(
+                        value: 'admin', child: Text('Admin')),
+                    DropdownMenuItem(
+                        value: 'manager', child: Text('Manager')),
+                    DropdownMenuItem(
+                        value: 'student', child: Text('Student')),
                   ],
-                   onChanged: (v) => setState(() => role = v ?? 'student'),
-                  decoration: const InputDecoration(labelText: 'Vai trò *'),
+                  onChanged: (v) => setState(() => role = v ?? 'student'),
+                  decoration:
+                      const InputDecoration(labelText: 'Vai trò *'),
                 ),
-                TextFormField(controller: mssvCtrl, decoration: const InputDecoration(labelText: 'MSSV')),
-                TextFormField(controller: classCtrl, decoration: const InputDecoration(labelText: 'Lớp')),
+                TextFormField(
+                    controller: mssvCtrl,
+                    decoration:
+                        const InputDecoration(labelText: 'MSSV')),
+                TextFormField(
+                    controller: classCtrl,
+                    decoration:
+                        const InputDecoration(labelText: 'Lớp')),
                 TextFormField(
                   controller: phoneCtrl,
-                  decoration: const InputDecoration(labelText: 'SĐT'),
+                  decoration:
+                      const InputDecoration(labelText: 'SĐT'),
                   keyboardType: TextInputType.phone,
                 ),
               ],
@@ -725,32 +847,44 @@ class _AdminUsersScreenState extends ConsumerState<AdminUsersScreen> {
           ),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Hủy')),
+          TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Hủy')),
           ElevatedButton(
             onPressed: () async {
               if (!formKey.currentState!.validate()) return;
               final payload = {
                 'name': nameCtrl.text.trim(),
                 'email': emailCtrl.text.trim(),
-                'password': passCtrl.text.isEmpty ? '123456' : passCtrl.text,
+                'password':
+                    passCtrl.text.isEmpty ? '123456' : passCtrl.text,
                 'role': role,
-                if (mssvCtrl.text.trim().isNotEmpty) 'mssv': mssvCtrl.text.trim(),
-                if (classCtrl.text.trim().isNotEmpty) 'class': classCtrl.text.trim(),
-                if (phoneCtrl.text.trim().isNotEmpty) 'phone': phoneCtrl.text.trim(),
+                if (mssvCtrl.text.trim().isNotEmpty)
+                  'mssv': mssvCtrl.text.trim(),
+                if (classCtrl.text.trim().isNotEmpty)
+                  'class': classCtrl.text.trim(),
+                if (phoneCtrl.text.trim().isNotEmpty)
+                  'phone': phoneCtrl.text.trim(),
               };
-              final res = await ref.read(adminUsersProvider.notifier).createUser(payload);
+              final res = await ref
+                  .read(adminUsersProvider.notifier)
+                  .createUser(payload);
               if (!mounted) return;
               if (res != null) {
                 Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                  content: Text('Tạo người dùng thành công'),
-                  backgroundColor: Colors.green,
-                ));
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Tạo người dùng thành công'),
+                    backgroundColor: Colors.green,
+                  ),
+                );
               } else {
-                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                  content: Text('Không thể tạo người dùng'),
-                  backgroundColor: Colors.red,
-                ));
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Không thể tạo người dùng'),
+                    backgroundColor: Colors.red,
+                  ),
+                );
               }
             },
             child: const Text('Tạo'),
@@ -769,12 +903,17 @@ class _AdminUsersScreenState extends ConsumerState<AdminUsersScreen> {
 
   void _showEditUserDialog(Map<String, dynamic> user) {
     final formKey = GlobalKey<FormState>();
-    final nameCtrl = TextEditingController(text: user['name']?.toString() ?? '');
-    final emailCtrl = TextEditingController(text: user['email']?.toString() ?? '');
+    final nameCtrl =
+        TextEditingController(text: user['name']?.toString() ?? '');
+    final emailCtrl =
+        TextEditingController(text: user['email']?.toString() ?? '');
     final passCtrl = TextEditingController();
-    final mssvCtrl = TextEditingController(text: user['mssv']?.toString() ?? '');
-    final classCtrl = TextEditingController(text: user['class']?.toString() ?? '');
-    final phoneCtrl = TextEditingController(text: user['phone']?.toString() ?? '');
+    final mssvCtrl =
+        TextEditingController(text: user['mssv']?.toString() ?? '');
+    final classCtrl =
+        TextEditingController(text: user['class']?.toString() ?? '');
+    final phoneCtrl =
+        TextEditingController(text: user['phone']?.toString() ?? '');
     String role = UserRoleX.parse(user['role']).name;
 
     showDialog(
@@ -789,41 +928,63 @@ class _AdminUsersScreenState extends ConsumerState<AdminUsersScreen> {
               children: [
                 TextFormField(
                   controller: nameCtrl,
-                  decoration: const InputDecoration(labelText: 'Họ và tên *'),
-                  validator: (v) => (v == null || v.trim().isEmpty) ? 'Vui lòng nhập tên' : null,
+                  decoration:
+                      const InputDecoration(labelText: 'Họ và tên *'),
+                  validator: (v) =>
+                      (v == null || v.trim().isEmpty)
+                          ? 'Vui lòng nhập tên'
+                          : null,
                 ),
                 TextFormField(
                   controller: emailCtrl,
-                  decoration: const InputDecoration(labelText: 'Email *'),
+                  decoration:
+                      const InputDecoration(labelText: 'Email *'),
                   keyboardType: TextInputType.emailAddress,
                   validator: (v) {
-                    if (v == null || v.trim().isEmpty) return 'Vui lòng nhập email';
+                    if (v == null || v.trim().isEmpty) {
+                      return 'Vui lòng nhập email';
+                    }
                     final emailRegex = RegExp(r'^\S+@\S+\.\S+$');
-                    if (!emailRegex.hasMatch(v.trim())) return 'Email không hợp lệ';
+                    if (!emailRegex.hasMatch(v.trim())) {
+                      return 'Email không hợp lệ';
+                    }
                     return null;
                   },
                 ),
                 TextFormField(
                   controller: passCtrl,
-                  decoration: const InputDecoration(labelText: 'Mật khẩu mới (để trống nếu không đổi)'),
+                  decoration: const InputDecoration(
+                    labelText: 'Mật khẩu mới (để trống nếu không đổi)',
+                  ),
                   obscureText: true,
                 ),
                 const SizedBox(height: 8),
                 DropdownButtonFormField<String>(
                   value: role,
                   items: const [
-                    DropdownMenuItem(value: 'admin', child: Text('Admin')),
-                    DropdownMenuItem(value: 'manager', child: Text('Manager')),
-                    DropdownMenuItem(value: 'student', child: Text('Student')),
+                    DropdownMenuItem(
+                        value: 'admin', child: Text('Admin')),
+                    DropdownMenuItem(
+                        value: 'manager', child: Text('Manager')),
+                    DropdownMenuItem(
+                        value: 'student', child: Text('Student')),
                   ],
-                   onChanged: (v) => setState(() => role = v ?? role),
-                  decoration: const InputDecoration(labelText: 'Vai trò *'),
+                  onChanged: (v) => setState(() => role = v ?? role),
+                  decoration:
+                      const InputDecoration(labelText: 'Vai trò *'),
                 ),
-                TextFormField(controller: mssvCtrl, decoration: const InputDecoration(labelText: 'MSSV')),
-                TextFormField(controller: classCtrl, decoration: const InputDecoration(labelText: 'Lớp')),
+                TextFormField(
+                    controller: mssvCtrl,
+                    decoration:
+                        const InputDecoration(labelText: 'MSSV')),
+                TextFormField(
+                    controller: classCtrl,
+                    decoration:
+                        const InputDecoration(labelText: 'Lớp')),
                 TextFormField(
                   controller: phoneCtrl,
-                  decoration: const InputDecoration(labelText: 'SĐT'),
+                  decoration:
+                      const InputDecoration(labelText: 'SĐT'),
                   keyboardType: TextInputType.phone,
                 ),
               ],
@@ -831,7 +992,9 @@ class _AdminUsersScreenState extends ConsumerState<AdminUsersScreen> {
           ),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Hủy')),
+          TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Hủy')),
           ElevatedButton(
             onPressed: () async {
               if (!formKey.currentState!.validate()) return;
@@ -840,23 +1003,35 @@ class _AdminUsersScreenState extends ConsumerState<AdminUsersScreen> {
                 'email': emailCtrl.text.trim(),
                 'role': role,
                 if (passCtrl.text.isNotEmpty) 'password': passCtrl.text,
-                'mssv': mssvCtrl.text.trim().isEmpty ? null : mssvCtrl.text.trim(),
-                'class': classCtrl.text.trim().isEmpty ? null : classCtrl.text.trim(),
-                'phone': phoneCtrl.text.trim().isEmpty ? null : phoneCtrl.text.trim(),
+                'mssv': mssvCtrl.text.trim().isEmpty
+                    ? null
+                    : mssvCtrl.text.trim(),
+                'class': classCtrl.text.trim().isEmpty
+                    ? null
+                    : classCtrl.text.trim(),
+                'phone': phoneCtrl.text.trim().isEmpty
+                    ? null
+                    : phoneCtrl.text.trim(),
               }..removeWhere((k, v) => v == null);
-               final res = await ref.read(adminUsersProvider.notifier).updateUser(user['id'], payload);
+              final res = await ref
+                  .read(adminUsersProvider.notifier)
+                  .updateUser(user['id'], payload);
               if (!mounted) return;
               if (res != null) {
                 Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                  content: Text('Cập nhật người dùng thành công'),
-                  backgroundColor: Colors.green,
-                ));
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Cập nhật người dùng thành công'),
+                    backgroundColor: Colors.green,
+                  ),
+                );
               } else {
-                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                  content: Text('Không thể cập nhật người dùng'),
-                  backgroundColor: Colors.red,
-                ));
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Không thể cập nhật người dùng'),
+                    backgroundColor: Colors.red,
+                  ),
+                );
               }
             },
             child: const Text('Lưu'),
@@ -895,8 +1070,12 @@ class _AdminUsersScreenState extends ConsumerState<AdminUsersScreen> {
                 ),
                 obscureText: true,
                 validator: (v) {
-                  if (v == null || v.isEmpty) return 'Vui lòng nhập mật khẩu mới';
-                  if (v.length < 6) return 'Mật khẩu ít nhất 6 ký tự';
+                  if (v == null || v.isEmpty) {
+                    return 'Vui lòng nhập mật khẩu mới';
+                  }
+                  if (v.length < 6) {
+                    return 'Mật khẩu ít nhất 6 ký tự';
+                  }
                   return null;
                 },
               ),
@@ -909,8 +1088,12 @@ class _AdminUsersScreenState extends ConsumerState<AdminUsersScreen> {
                 ),
                 obscureText: true,
                 validator: (v) {
-                  if (v == null || v.isEmpty) return 'Vui lòng xác nhận mật khẩu';
-                  if (v != passwordCtrl.text) return 'Mật khẩu xác nhận không khớp';
+                  if (v == null || v.isEmpty) {
+                    return 'Vui lòng xác nhận mật khẩu';
+                  }
+                  if (v != passwordCtrl.text) {
+                    return 'Mật khẩu xác nhận không khớp';
+                  }
                   return null;
                 },
               ),
@@ -918,7 +1101,9 @@ class _AdminUsersScreenState extends ConsumerState<AdminUsersScreen> {
           ),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Hủy')),
+          TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Hủy')),
           ElevatedButton(
             onPressed: () async {
               if (!formKey.currentState!.validate()) return;
@@ -927,10 +1112,15 @@ class _AdminUsersScreenState extends ConsumerState<AdminUsersScreen> {
                   .resetUserPassword(user['id'], passwordCtrl.text);
               if (!mounted) return;
               Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                content: Text(success ? 'Reset mật khẩu thành công' : 'Không thể reset mật khẩu'),
-                backgroundColor: success ? Colors.green : Colors.red,
-              ));
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(success
+                      ? 'Reset mật khẩu thành công'
+                      : 'Không thể reset mật khẩu'),
+                  backgroundColor:
+                      success ? Colors.green : Colors.red,
+                ),
+              );
             },
             child: const Text('Reset'),
           ),
@@ -951,16 +1141,103 @@ class _AdminUsersScreenState extends ConsumerState<AdminUsersScreen> {
           'Bạn có chắc chắn muốn xóa vĩnh viễn người dùng "${user['name']}"?\n\nHành động này không thể hoàn tác!',
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Hủy')),
+          TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Hủy')),
           ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: const Color.fromARGB(255, 238, 151, 145)),
+            style: ElevatedButton.styleFrom(
+              backgroundColor:
+                  const Color.fromARGB(255, 238, 151, 145),
+            ),
             onPressed: () async {
               Navigator.pop(context);
-              await ref.read(adminUsersProvider.notifier).deleteUser(user['id']);
+              await ref
+                  .read(adminUsersProvider.notifier)
+                  .deleteUser(user['id']);
             },
             child: const Text('Xóa vĩnh viễn'),
           ),
         ],
+      ),
+    );
+  }
+
+  /// Filter dialog (đÃ di chuyển ra đúng class)
+  void _showFilterDialog(BuildContext context, WidgetRef ref) {
+    showDialog(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setState) => AlertDialog(
+          title: const Text('Lọc người dùng'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text('Vai trò:',
+                  style: TextStyle(fontWeight: FontWeight.bold)),
+              const SizedBox(height: 8),
+              DropdownButtonFormField<String>(
+                value: _selectedRole,
+                decoration: const InputDecoration(
+                  border: OutlineInputBorder(),
+                  contentPadding:
+                      EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                ),
+                items: const [
+                  DropdownMenuItem(
+                      value: 'all', child: Text('Tất cả vai trò')),
+                  DropdownMenuItem(value: 'admin', child: Text('Admin')),
+                  DropdownMenuItem(
+                      value: 'manager', child: Text('Manager')),
+                  DropdownMenuItem(
+                      value: 'student', child: Text('Student')),
+                ],
+                onChanged: (value) {
+                  if (value == null) return;
+                  setState(() => _selectedRole = value);
+                },
+              ),
+              const SizedBox(height: 24),
+              const Text('Trạng thái:',
+                  style: TextStyle(fontWeight: FontWeight.bold)),
+              const SizedBox(height: 8),
+              DropdownButtonFormField<String>(
+                value: _selectedStatus,
+                decoration: const InputDecoration(
+                  border: OutlineInputBorder(),
+                  contentPadding:
+                      EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                ),
+                items: const [
+                  DropdownMenuItem(
+                      value: 'all', child: Text('Tất cả trạng thái')),
+                  DropdownMenuItem(value: '1', child: Text('Hoạt động')),
+                  DropdownMenuItem(
+                      value: '0', child: Text('Không hoạt động')),
+                  DropdownMenuItem(
+                      value: '2', child: Text('Chờ xác nhận')),
+                ],
+                onChanged: (value) {
+                  if (value == null) return;
+                  setState(() => _selectedStatus = value);
+                },
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Hủy'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.pop(context);
+                ref.read(adminUsersProvider.notifier).filterByRole(_selectedRole);
+                // TODO: Implement status filter
+              },
+              child: const Text('Áp dụng'),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -974,7 +1251,11 @@ class ChangeRoleDialog extends StatefulWidget {
   final String currentRole; // 'admin' | 'manager' | 'student'
   final Map<String, dynamic> user;
 
-  const ChangeRoleDialog({super.key, required this.currentRole, required this.user});
+  const ChangeRoleDialog({
+    super.key,
+    required this.currentRole,
+    required this.user,
+  });
 
   @override
   State<ChangeRoleDialog> createState() => _ChangeRoleDialogState();
@@ -1021,7 +1302,9 @@ class _ChangeRoleDialogState extends State<ChangeRoleDialog> {
         ],
       ),
       actions: [
-        TextButton(onPressed: () => Navigator.pop(context), child: const Text('Hủy')),
+        TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Hủy')),
         ElevatedButton(
           onPressed: () => Navigator.pop(context, selectedRole),
           child: const Text('Đổi quyền'),
@@ -1035,7 +1318,11 @@ class ChangeStatusDialog extends StatefulWidget {
   final int currentStatus; // 0|1|2
   final Map<String, dynamic> user;
 
-  const ChangeStatusDialog({super.key, required this.currentStatus, required this.user});
+  const ChangeStatusDialog({
+    super.key,
+    required this.currentStatus,
+    required this.user,
+  });
 
   @override
   State<ChangeStatusDialog> createState() => _ChangeStatusDialogState();
@@ -1059,7 +1346,8 @@ class _ChangeStatusDialogState extends State<ChangeStatusDialog> {
         children: [
           Text('Thay đổi trạng thái cho người dùng: ${widget.user['name']}'),
           const SizedBox(height: 16),
-          const Text('Chọn trạng thái mới:', style: TextStyle(fontWeight: FontWeight.bold)),
+          const Text('Chọn trạng thái mới:',
+              style: TextStyle(fontWeight: FontWeight.bold)),
           const SizedBox(height: 8),
           RadioListTile<int>(
             title: const Text('Hoạt động'),
@@ -1085,7 +1373,9 @@ class _ChangeStatusDialogState extends State<ChangeStatusDialog> {
         ],
       ),
       actions: [
-        TextButton(onPressed: () => Navigator.pop(context), child: const Text('Hủy')),
+        TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Hủy')),
         ElevatedButton(
           onPressed: () => Navigator.pop(context, selectedStatus),
           child: const Text('Thay đổi'),
