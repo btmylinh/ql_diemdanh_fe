@@ -87,10 +87,17 @@ class AdminUsersNotifier extends StateNotifier<AdminUsersState> {
       if (response['data'] != null) {
         // prepend new user
         final updated = [response['data'] as Map<String, dynamic>, ...state.users];
-        state = state.copyWith(users: updated);
+        state = state.copyWith(users: updated, error: null);
         return response['data'];
       }
-      state = state.copyWith(error: response['message'] ?? 'Không thể tạo người dùng');
+      // Parse error message from backend
+      String errorMsg = 'Không thể tạo người dùng';
+      if (response['message']) {
+        errorMsg = response['message'];
+      } else if (response['error']?['message']) {
+        errorMsg = response['error']['message'];
+      }
+      state = state.copyWith(error: errorMsg);
       return null;
     } catch (e) {
       state = state.copyWith(error: 'Lỗi: ${e.toString()}');

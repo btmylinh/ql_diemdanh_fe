@@ -7,18 +7,36 @@ final periodicReportProvider = FutureProvider<List<Map<String, dynamic>>>((ref) 
 });
 
 /// Provider cho báo cáo tuần
-final weeklyReportProvider = FutureProvider<Map<String, dynamic>?>((ref) async {
-  return await PeriodicReportService.getPeriodicReport('weekly');
+final weeklyReportProvider = FutureProvider.family<Map<String, dynamic>?, Map<String, DateTime>>((ref, dates) async {
+  final startDate = dates['startDate']!;
+  final endDate = dates['endDate']!;
+  return await PeriodicReportService.getReport(
+    period: 'weekly',
+    startDate: startDate,
+    endDate: endDate,
+  );
 });
 
 /// Provider cho báo cáo tháng
-final monthlyReportProvider = FutureProvider<Map<String, dynamic>?>((ref) async {
-  return await PeriodicReportService.getPeriodicReport('monthly');
+final monthlyReportProvider = FutureProvider.family<Map<String, dynamic>?, Map<String, DateTime>>((ref, dates) async {
+  final startDate = dates['startDate']!;
+  final endDate = dates['endDate']!;
+  return await PeriodicReportService.getReport(
+    period: 'monthly',
+    startDate: startDate,
+    endDate: endDate,
+  );
 });
 
 /// Provider cho báo cáo năm
-final yearlyReportProvider = FutureProvider<Map<String, dynamic>?>((ref) async {
-  return await PeriodicReportService.getPeriodicReport('yearly');
+final yearlyReportProvider = FutureProvider.family<Map<String, dynamic>?, Map<String, DateTime>>((ref, dates) async {
+  final startDate = dates['startDate']!;
+  final endDate = dates['endDate']!;
+  return await PeriodicReportService.getReport(
+    period: 'yearly',
+    startDate: startDate,
+    endDate: endDate,
+  );
 });
 
 /// Provider cho trạng thái tạo báo cáo
@@ -55,8 +73,8 @@ class PeriodicReportNotifier extends StateNotifier<AsyncValue<List<Map<String, d
   }
 
   /// Lấy báo cáo theo kỳ
-  Future<Map<String, dynamic>?> getReportByPeriod(String period) async {
-    return await PeriodicReportService.getPeriodicReport(period);
+  Future<Map<String, dynamic>?> getReportByPeriod(String period, DateTime startDate, DateTime endDate) async {
+    return await PeriodicReportService.getPeriodicReport(period, startDate, endDate);
   }
 
   /// Kiểm tra xem có cần tạo báo cáo mới không

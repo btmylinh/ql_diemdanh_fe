@@ -61,6 +61,7 @@ class _AdminRestoreScreenState extends ConsumerState<AdminRestoreScreen> {
                 label: const Text('Chọn file từ thiết bị'),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.blue,
+                  foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(vertical: 16),
                   textStyle: const TextStyle(fontSize: 16),
                 ),

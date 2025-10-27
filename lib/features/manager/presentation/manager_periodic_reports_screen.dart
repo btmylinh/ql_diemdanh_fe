@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import '../../../theme.dart';
 import '../data/activities_providers.dart';
 import '../data/activities_repository.dart';
+import '../data/periodic_reports_provider.dart';
 
 class ManagerPeriodicReportsScreen extends ConsumerStatefulWidget {
   const ManagerPeriodicReportsScreen({super.key});
@@ -79,7 +80,12 @@ class _ManagerPeriodicReportsScreenState extends ConsumerState<ManagerPeriodicRe
   }
 
   Widget _buildOverviewTab() {
-    final activitiesAsync = ref.watch(myActivitiesProvider((page: 1, limit: 100, q: null, status: null)));
+    final (startDate, endDate) = _getPeriodDates();
+    final reportAsync = ref.watch(periodicReportProvider({
+      'period': _selectedPeriodType,
+      'startDate': startDate,
+      'endDate': endDate,
+    }));
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
@@ -146,49 +152,87 @@ class _ManagerPeriodicReportsScreenState extends ConsumerState<ManagerPeriodicRe
           ),
           const SizedBox(height: 16),
           
-          activitiesAsync.when(
-            data: (data) {
-              final activities = List<Map<String, dynamic>>.from(data['activities'] ?? []);
-              final periodActivities = _filterByPeriod(activities);
-              
+          reportAsync.when(
+            data: (report) {
               return Column(
                 children: [
                   _StatCard(
-                    title: 'Hoạt động trong kỳ',
-                    value: periodActivities.length.toString(),
+                    title: 'Hoạt động được tạo',
+                    value: (report['activitiesCreated'] ?? 0).toString(),
                     icon: Icons.event,
                     color: kBlue,
-                    subtitle: 'Được tạo trong kỳ này',
-                  ),
-                  const SizedBox(height: 12),
-                  _StatCard(
-                    title: 'Tổng hoạt động',
-                    value: activities.length.toString(),
-                    icon: Icons.event_available,
-                    color: Colors.purple,
-                    subtitle: 'Tất cả thời gian',
-                  ),
-                  const SizedBox(height: 12),
-                  _StatCard(
-                    title: 'Hoạt động đang diễn ra',
-                    value: _getActiveActivitiesCount(periodActivities).toString(),
-                    icon: Icons.play_circle,
-                    color: kGreen,
                     subtitle: 'Trong kỳ này',
                   ),
                   const SizedBox(height: 12),
                   _StatCard(
+                    title: 'Tổng hoạt động',
+                    value: (report['totalActivities'] ?? 0).toString(),
+                    icon: Icons.event_available,
+                    color: Colors.purple,
+                    subtitle: 'Tổng số hiện có',
+                  ),
+                  const SizedBox(height: 12),
+                  _StatCard(
+                    title: 'Hoạt động đang diễn ra',
+                    value: (report['activeActivities'] ?? 0).toString(),
+                    icon: Icons.play_circle,
+                    color: kGreen,
+                    subtitle: 'Hiện tại',
+                  ),
+                  const SizedBox(height: 12),
+                  _StatCard(
                     title: 'Hoạt động đã hoàn thành',
-                    value: _getCompletedActivitiesCount(periodActivities).toString(),
+                    value: (report['completedActivities'] ?? 0).toString(),
                     icon: Icons.check_circle,
                     color: Colors.orange,
+                    subtitle: 'Tổng số',
+                  ),
+                  const SizedBox(height: 12),
+                  _StatCard(
+                    title: 'Đăng ký mới',
+                    value: (report['registrations'] ?? 0).toString(),
+                    icon: Icons.person_add,
+                    color: Colors.blue,
+                    subtitle: 'Trong kỳ này',
+                  ),
+                  const SizedBox(height: 12),
+                  _StatCard(
+                    title: 'Điểm danh',
+                    value: (report['attendances'] ?? 0).toString(),
+                    icon: Icons.checklist,
+                    color: Colors.green,
+                    subtitle: 'Trong kỳ này',
+                  ),
+                  const SizedBox(height: 12),
+                  _StatCard(
+                    title: 'Người dùng mới',
+                    value: (report['newUsers'] ?? 0).toString(),
+                    icon: Icons.group_add,
+                    color: Colors.purple,
                     subtitle: 'Trong kỳ này',
                   ),
                 ],
               );
             },
             loading: () => const Center(child: CircularProgressIndicator()),
-            error: (e, s) => Center(child: Text('Lỗi tải hoạt động: $e')),
+            error: (e, s) {
+              print('Error loading report: $e');
+              return Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(Icons.error_outline, size: 64, color: Colors.red),
+                    const SizedBox(height: 16),
+                    Text('Lỗi tải báo cáo: $e'),
+                    const SizedBox(height: 16),
+                    ElevatedButton(
+                      onPressed: () => setState(() {}),
+                      child: const Text('Thử lại'),
+                    ),
+                  ],
+                ),
+              );
+            },
           ),
         ],
       ),
@@ -430,6 +474,31 @@ class _ManagerPeriodicReportsScreenState extends ConsumerState<ManagerPeriodicRe
         ],
       ),
     );
+  }
+
+  (DateTime, DateTime) _getPeriodDates() {
+    final now = DateTime.now();
+    DateTime startDate;
+    DateTime endDate;
+
+    switch (_selectedPeriodType) {
+      case 'week':
+        startDate = now.subtract(Duration(days: now.weekday - 1));
+        endDate = startDate.add(const Duration(days: 6));
+        break;
+      case 'month':
+        startDate = DateTime(now.year, now.month, 1);
+        endDate = DateTime(now.year, now.month + 1, 0);
+        break;
+      case 'year':
+        startDate = DateTime(now.year, 1, 1);
+        endDate = DateTime(now.year, 12, 31);
+        break;
+      default:
+        startDate = DateTime(now.year, now.month, 1);
+        endDate = DateTime(now.year, now.month + 1, 0);
+    }
+    return (startDate, endDate);
   }
 
   void _showPeriodSelector() {

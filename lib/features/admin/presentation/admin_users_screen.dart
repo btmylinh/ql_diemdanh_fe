@@ -856,16 +856,12 @@ class _AdminUsersScreenState extends ConsumerState<AdminUsersScreen> {
               final payload = {
                 'name': nameCtrl.text.trim(),
                 'email': emailCtrl.text.trim(),
-                'password':
-                    passCtrl.text.isEmpty ? '123456' : passCtrl.text,
+                'password': passCtrl.text.isEmpty ? '123456' : passCtrl.text,
                 'role': role,
-                if (mssvCtrl.text.trim().isNotEmpty)
-                  'mssv': mssvCtrl.text.trim(),
-                if (classCtrl.text.trim().isNotEmpty)
-                  'class': classCtrl.text.trim(),
-                if (phoneCtrl.text.trim().isNotEmpty)
-                  'phone': phoneCtrl.text.trim(),
-              };
+                'mssv': mssvCtrl.text.trim().isEmpty ? null : mssvCtrl.text.trim(),
+                'class': classCtrl.text.trim().isEmpty ? null : classCtrl.text.trim(),
+                'phone': phoneCtrl.text.trim().isEmpty ? null : phoneCtrl.text.trim(),
+              }..removeWhere((k, v) => v == null);
               final res = await ref
                   .read(adminUsersProvider.notifier)
                   .createUser(payload);
@@ -879,10 +875,13 @@ class _AdminUsersScreenState extends ConsumerState<AdminUsersScreen> {
                   ),
                 );
               } else {
+                // Hiển thị error message từ state
+                final error = ref.read(adminUsersProvider).error;
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Không thể tạo người dùng'),
+                  SnackBar(
+                    content: Text(error ?? 'Không thể tạo người dùng'),
                     backgroundColor: Colors.red,
+                    duration: const Duration(seconds: 3),
                   ),
                 );
               }
@@ -914,7 +913,7 @@ class _AdminUsersScreenState extends ConsumerState<AdminUsersScreen> {
         TextEditingController(text: user['class']?.toString() ?? '');
     final phoneCtrl =
         TextEditingController(text: user['phone']?.toString() ?? '');
-    String role = UserRoleX.parse(user['role']).name;
+    String role = _getRoleString(user['role'] ?? 'student');
 
     showDialog(
       context: context,
@@ -1240,6 +1239,21 @@ class _AdminUsersScreenState extends ConsumerState<AdminUsersScreen> {
         ),
       ),
     );
+  }
+
+  /// Helper: Convert role to proper string format
+  String _getRoleString(dynamic role) {
+    final roleStr = (role ?? 'student').toString().toLowerCase();
+    switch (roleStr) {
+      case 'admin':
+        return 'admin';
+      case 'manager':
+        return 'manager';
+      case 'student':
+        return 'student';
+      default:
+        return 'student'; // Default fallback
+    }
   }
 }
 

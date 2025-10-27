@@ -81,6 +81,44 @@ class ReportsService {
     }
   }
 
+  /// Lấy báo cáo định kỳ từ backend
+  Future<Map<String, dynamic>> getPeriodicReport({
+    required String period,
+    DateTime? startDate,
+    DateTime? endDate,
+  }) async {
+    try {
+      final queryParams = <String, String>{'period': period};
+      if (startDate != null) queryParams['start'] = startDate.toIso8601String();
+      if (endDate != null) queryParams['end'] = endDate.toIso8601String();
+      
+      final response = await _apiClient.get('/reports/periodic', queryParams);
+      return response['data'] as Map<String, dynamic>? ?? {};
+    } catch (e) {
+      throw Exception('Lỗi khi lấy báo cáo định kỳ: ${e.toString()}');
+    }
+  }
+
+  /// Lưu báo cáo định kỳ vào backend
+  Future<void> savePeriodicReport(Map<String, dynamic> reportData) async {
+    try {
+      await _apiClient.post('/reports/periodic', reportData);
+    } catch (e) {
+      throw Exception('Lỗi khi lưu báo cáo định kỳ: ${e.toString()}');
+    }
+  }
+
+  /// Lấy danh sách báo cáo định kỳ đã lưu từ backend
+  Future<List<Map<String, dynamic>>> getStoredPeriodicReports({int limit = 20}) async {
+    try {
+      final response = await _apiClient.get('/reports/periodic/stored', {'limit': limit.toString()});
+      final data = response['data'] as List<dynamic>? ?? [];
+      return data.cast<Map<String, dynamic>>().toList();
+    } catch (e) {
+      throw Exception('Lỗi khi lấy danh sách báo cáo định kỳ: ${e.toString()}');
+    }
+  }
+
   /// Lấy dữ liệu chi tiết cho báo cáo
   Future<Map<String, dynamic>> getDetailedReport({
     required String reportType,
