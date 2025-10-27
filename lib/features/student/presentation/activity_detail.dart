@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../../../theme.dart';
 import '../data/activities_repository.dart';
 import '../data/registrations_repository.dart';
+import '../data/attendances_repository.dart';
 import '../data/activities_providers.dart';
 import '../data/registrations_providers.dart';
 
@@ -163,6 +164,9 @@ class _ActivityDetailScreenState extends ConsumerState<ActivityDetailScreen> {
                         const SizedBox(height: 16),
                           // Register Button
                           _RegisterButton(activity: activity, onChanged: _fetch),
+                          const SizedBox(height: 12),
+                          // Attendance Button
+                          _AttendanceButton(activity: activity, onChanged: _fetch),
                         ],
                       ),
                     ),
@@ -187,6 +191,170 @@ class _ActivityDetailScreenState extends ConsumerState<ActivityDetailScreen> {
     return '${_two(t.hour)}:${_two(t.minute)} ${_two(t.day)}/${_two(t.month)}/${t.year}';
   }
 
+}
+
+class _AttendanceButton extends ConsumerStatefulWidget {
+  const _AttendanceButton({required this.activity, required this.onChanged});
+  final Map<String, dynamic> activity;
+  final VoidCallback onChanged;
+
+  @override
+  ConsumerState<_AttendanceButton> createState() => _AttendanceButtonState();
+}
+
+class _AttendanceButtonState extends ConsumerState<_AttendanceButton> {
+  bool _busy = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final registered = widget.activity['registered_by_me'] == true;
+    final start = DateTime.tryParse(widget.activity['start_time']?.toString() ?? '');
+    final end = DateTime.tryParse(widget.activity['end_time']?.toString() ?? '');
+    final now = DateTime.now();
+    final status = widget.activity['status'] ?? 0;
+    
+    // Kiểm tra điều kiện điểm danh
+    final canCheckin = registered && 
+                      status == 2 && // Đang diễn ra
+                      start != null && 
+                      now.isAfter(start) && 
+                      (end == null || now.isBefore(end));
+    
+    return SizedBox(
+      width: double.infinity,
+      height: 48,
+      child: FilledButton.icon(
+        style: ButtonStyle(
+          backgroundColor: WidgetStatePropertyAll(
+            !canCheckin ? Colors.grey : kGreen,
+          ),
+        ),
+        onPressed: (_busy || !canCheckin) ? null : () => _showAttendanceDialog(),
+        icon: const Icon(Icons.qr_code_scanner, color: Colors.white),
+        label: Text(
+          !registered ? 'Chưa đăng ký' :
+          status != 2 ? 'Chưa diễn ra' :
+          start != null && now.isBefore(start) ? 'Chưa bắt đầu' :
+          end != null && now.isAfter(end) ? 'Đã kết thúc' :
+          'Điểm danh',
+          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+        ),
+      ),
+    );
+  }
+
+  void _showAttendanceDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Điểm danh'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text('Chọn cách điểm danh:'),
+            const SizedBox(height: 16),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: () {
+                  Navigator.pop(context);
+                  context.push('/student/qr-scan');
+                },
+                icon: const Icon(Icons.qr_code_scanner),
+                label: const Text('Quét QR Code'),
+              ),
+            ),
+            const SizedBox(height: 8),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: () {
+                  Navigator.pop(context);
+                  _showCodeInputDialog();
+                },
+                icon: const Icon(Icons.keyboard),
+                label: const Text('Nhập mã code'),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Hủy'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showCodeInputDialog() {
+    final codeController = TextEditingController();
+    
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Nhập mã code'),
+        content: TextField(
+          controller: codeController,
+          decoration: const InputDecoration(
+            labelText: 'Mã code điểm danh',
+            hintText: 'Nhập mã code được cung cấp',
+            border: OutlineInputBorder(),
+          ),
+          textCapitalization: TextCapitalization.characters,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Hủy'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              final code = codeController.text.trim();
+              if (code.isEmpty) return;
+              
+              Navigator.pop(context);
+              await _checkinByCode(code);
+            },
+            child: const Text('Điểm danh'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _checkinByCode(String code) async {
+    setState(() { _busy = true; });
+    
+    try {
+      final result = await ref.read(attendancesRepositoryProvider).checkinByCode(
+        activityId: widget.activity['id'] as int,
+        code: code,
+      );
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(result['message'] ?? 'Điểm danh thành công'),
+            backgroundColor: Colors.green,
+          ),
+        );
+        widget.onChanged(); // Refresh data
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Lỗi: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      setState(() { _busy = false; });
+    }
+  }
 }
 
 class _RegisterButton extends ConsumerStatefulWidget {

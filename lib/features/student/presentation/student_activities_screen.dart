@@ -43,6 +43,12 @@ class _StudentActivitiesScreenState extends ConsumerState<StudentActivitiesScree
       ),
       body: Column(
         children: [
+          // Ongoing Activity Banner
+          listAsync.when(
+            data: (data) => _buildOngoingBanner(List<Map<String, dynamic>>.from(data['activities'] ?? [])),
+            loading: () => const SizedBox.shrink(),
+            error: (_, __) => const SizedBox.shrink(),
+          ),
           // Search bar
           Padding(
             padding: const EdgeInsets.all(16),
@@ -242,6 +248,113 @@ class _StudentActivitiesScreenState extends ConsumerState<StudentActivitiesScree
         ],
       ),
       bottomNavigationBar: _BottomNavigationBar(),
+    );
+  }
+
+  Widget _buildOngoingBanner(List<Map<String, dynamic>> activities) {
+    final now = DateTime.now();
+    
+    // Tìm hoạt động đang diễn ra mà sinh viên đã đăng ký
+    final ongoingActivity = activities.firstWhere(
+      (activity) {
+        final registered = activity['registered_by_me'] == true;
+        final status = activity['status'] ?? 0;
+        final start = DateTime.tryParse(activity['start_time']?.toString() ?? '');
+        final end = DateTime.tryParse(activity['end_time']?.toString() ?? '');
+        
+        return registered && 
+               status == 2 && // Đang diễn ra
+               start != null && 
+               now.isAfter(start) && 
+               (end == null || now.isBefore(end));
+      },
+      orElse: () => <String, dynamic>{},
+    );
+    
+    if (ongoingActivity.isEmpty) {
+      return const SizedBox.shrink();
+    }
+    
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [kGreen, kGreen.withOpacity(0.8)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: kGreen.withOpacity(0.3),
+            blurRadius: 8,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.2),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: const Icon(
+              Icons.play_circle_fill,
+              color: Colors.white,
+              size: 24,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Hoạt động đang diễn ra',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  ongoingActivity['name'] ?? '',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Điểm danh ngay',
+                  style: TextStyle(
+                    color: Colors.white.withOpacity(0.9),
+                    fontSize: 12,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          IconButton(
+            onPressed: () {
+              context.push('/student/activity/${ongoingActivity['id']}');
+            },
+            icon: const Icon(
+              Icons.arrow_forward_ios,
+              color: Colors.white,
+              size: 16,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

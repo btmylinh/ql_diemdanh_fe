@@ -11,6 +11,14 @@ class AttendancesRepository {
     return Map<String, dynamic>.from(res.data);
   }
 
+  Future<Map<String, dynamic>> checkinByCode({required int activityId, required String code}) async {
+    final res = await _dio.post('/attendances/checkin-code', data: {
+      'activityId': activityId,
+      'code': code,
+    });
+    return Map<String, dynamic>.from(res.data);
+  }
+
   Future<Map<String, dynamic>> my({int page = 1, int limit = 10}) async {
     final res = await _dio.get('/attendances/my', queryParameters: {
       'page': page,

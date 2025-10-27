@@ -4,11 +4,14 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'dart:developer' as dev;
 
 String baseUrl() {
-  // Sử dụng IP thật cho cả điện thoại thật và emulator
-    // if (Platform.isAndroid) return 'http://10.0.2.2:4000'; // Android Emulator
-  return 'http://192.168.100.243:4000'; 
+  // Tự động phát hiện môi trường Android Emulator
+  if (Platform.isAndroid) {
+    // Khi chạy emulator, localhost của máy thật là 10.0.2.2
+    return 'http://10.0.2.2:4000';
+  }
+  // Còn lại (điện thoại thật, iOS, web...) thì dùng IP LAN thật của máy
+  return 'http://192.168.100.243:4000';
 }
-
 final storage = const FlutterSecureStorage();
 
 Dio buildDio() {

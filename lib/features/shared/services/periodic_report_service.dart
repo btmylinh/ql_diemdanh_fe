@@ -111,9 +111,9 @@ class PeriodicReportService {
 
   /// Lên lịch tạo báo cáo tự động
   static Future<void> schedulePeriodicReports() async {
-    await generatePeriodicReports();
-  }
-
+      await generatePeriodicReports();
+    }
+    
   /// Kiểm tra xem có cần tạo báo cáo mới không
   static Future<bool> shouldGenerateNewReport() async {
     // Luôn trả về true để lấy dữ liệu mới nhất từ backend
